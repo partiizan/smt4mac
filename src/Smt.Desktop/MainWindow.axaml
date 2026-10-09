@@ -1,0 +1,102 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Smt.Desktop"
+ x:Class="Smt.Desktop.MainWindow" Title="SMT · Mac Beta" Width="1460" Height="900" MinWidth="1100" MinHeight="730" Background="#0A111B">
+ <Grid RowDefinitions="76,*,36">
+  <Border BorderBrush="#243143" BorderThickness="0,0,0,1" Padding="24,16">
+   <Grid ColumnDefinitions="250,*,Auto">
+    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+     <Border Background="#173C3A" CornerRadius="9" Width="38" Height="38"><TextBlock Text="S" FontWeight="Bold" FontSize="25" Foreground="#55DFC5" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+     <StackPanel><TextBlock Text="SMT / MAC" FontWeight="Bold" FontSize="17" LetterSpacing="2"/><TextBlock Text="NEW EDEN INTELLIGENCE" Classes="caption" FontSize="9"/></StackPanel>
+    </StackPanel>
+    <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="Your region. In focus." FontSize="19" FontWeight="SemiBold"/><TextBlock Name="DataSummary" Classes="muted" FontSize="11"/></StackPanel>
+    <Border Grid.Column="2" Background="#23302A" CornerRadius="5" Padding="12,7" VerticalAlignment="Center"><TextBlock Text="EXPERIMENTAL · 0.8" Foreground="#C8D797" FontSize="10" LetterSpacing="1"/></Border>
+   </Grid>
+  </Border>
+  <Grid Grid.Row="1" ColumnDefinitions="270,*,370">
+   <Border BorderBrush="#243143" BorderThickness="0,0,1,0" Padding="18">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+     <StackPanel Spacing="12">
+      <TextBlock Text="REGION" Classes="caption"/>
+      <ComboBox Name="RegionPicker" HorizontalAlignment="Stretch"/>
+      <ComboBox Name="AdmFilterPicker" HorizontalAlignment="Stretch" ToolTip.Tip="Gold rings highlight systems strictly below the selected ADM. Missing values are excluded."/>
+      <TextBlock Name="AdmFilterSummary" Classes="muted" TextWrapping="Wrap" FontSize="11"/>
+      <TextBox Name="SearchBox" Watermark="Find a system…"/>
+      <ListBox Name="SearchResults" IsVisible="False" MaxHeight="180" FontSize="12"/>
+      <Border Classes="card">
+       <StackPanel Spacing="7"><TextBlock Text="SELECTED SYSTEM" Classes="caption"/><TextBlock Name="SystemName" Text="Select a system" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Name="SystemInfo" Text="Click any node on the map." Classes="muted" TextWrapping="Wrap" FontSize="12"/>
+        <TextBlock Name="AdmDetails" Text="ADM · loading public ESI data…" Foreground="#55DFC5" TextWrapping="Wrap" FontSize="12"/>
+        <Grid ColumnDefinitions="*,*" Margin="0,8,0,0"><Button Name="FromSelected" Content="Set start" FontSize="11" Padding="6,8"/><Button Grid.Column="1" Name="ToSelected" Content="Set end" FontSize="11" Padding="6,8" HorizontalAlignment="Right"/></Grid>
+       </StackPanel>
+      </Border>
+      <TextBlock Text="ROUTE PLANNER" Classes="caption" Margin="0,10,0,0"/>
+      <AutoCompleteBox MinimumPrefixLength="1" FilterMode="StartsWithOrdinal" IsTextCompletionEnabled="False" MaxDropDownHeight="240" Name="FromBox" Watermark="Starting system"/>
+      <AutoCompleteBox MinimumPrefixLength="1" FilterMode="StartsWithOrdinal" IsTextCompletionEnabled="False" MaxDropDownHeight="240" Name="ToBox" Watermark="Destination system"/>
+      <ComboBox Name="RouteMode" HorizontalAlignment="Stretch"/>
+      <ComboBox Name="ShipPicker" HorizontalAlignment="Stretch"/>
+      <NumericUpDown Name="Calibration" Minimum="0" Maximum="5" Value="5" FormatString="'JDC '0"/>
+      <TextBlock Name="JumpRangeLabel" Classes="muted" FontSize="11"/>
+      <CheckBox Name="HighSecOnly" Content="High-security systems only" FontSize="11"/>
+      <Grid ColumnDefinitions="*,Auto"><Button Name="PlanRoute" Content="Plot route" Classes="primary" HorizontalAlignment="Stretch"/><Button Name="ClearRoute" Grid.Column="1" Content="×" Margin="6,0,0,0" ToolTip.Tip="Clear route"/></Grid>
+      <TextBlock Name="RouteSummary" Text="Choose gates, Ansiblex, or capital jumps." Classes="muted" FontSize="11" TextWrapping="Wrap"/>
+      <ListBox Name="RouteList" MaxHeight="220" FontSize="11"/>
+      <Expander Header="Waypoints &amp; exclusions" HorizontalAlignment="Stretch"><StackPanel Spacing="8">      <TextBox Name="WaypointsBox" Watermark="Waypoints, comma separated"/>
+      <TextBox Name="AvoidBox" Watermark="Avoid systems, comma separated"/>
+</StackPanel></Expander>
+      <Expander Header="Ansiblex network" HorizontalAlignment="Stretch"><StackPanel Spacing="8">      <Button Name="ImportBridges" Content="Import Ansiblex CSV…"/>
+      <Button Name="ClearBridges" Content="Clear Ansiblex network"/>
+      <TextBlock Name="BridgeStatus" Text="No Ansiblex network imported" Classes="muted" TextWrapping="Wrap" FontSize="11"/>
+</StackPanel></Expander>
+      <Border BorderBrush="#243143" BorderThickness="0,1,0,0" Padding="0,16,0,0" Margin="0,8,0,0">
+       <StackPanel Spacing="8"><TextBlock Text="MAP KEY" Classes="caption"/><TextBlock FontSize="11"><Run Text="●  High sec     " Foreground="#75D3BF"/><Run Text="●  Low sec" Foreground="#EBC077"/></TextBlock><TextBlock FontSize="11"><Run Text="●  Null sec       " Foreground="#C78C9B"/><Run Text="◎  Intel report" Foreground="#FF997E"/></TextBlock><TextBlock Text="Cyan line  ·  Planned route" Foreground="#55DFC5" FontSize="11"/><TextBlock Text="Ring = recent report, not a verified threat. Clear reports are shown in green." Classes="muted" FontSize="10" TextWrapping="Wrap"/></StackPanel>
+      </Border>
+     </StackPanel>
+    </ScrollViewer>
+   </Border>
+   <Grid Grid.Column="1" RowDefinitions="66,*,74">
+    <Grid ColumnDefinitions="*,Auto" Margin="22,16">
+     <StackPanel><TextBlock Name="RegionTitle" FontSize="22" FontWeight="SemiBold"/><TextBlock Name="RegionSubtitle" Classes="muted" FontSize="11"/></StackPanel>
+     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center"><CheckBox Name="ShowAdm" Content="ADM" IsChecked="True" Margin="0,0,8,0" ToolTip.Tip="Public ESI Activity Defense Multiplier, where applicable"/><Button Name="ZoomOut" Content="−"/><Button Name="ZoomIn" Content="+"/><Button Name="FitMap" Content="Fit"/></StackPanel>
+    </Grid>
+    <local:StarMap Name="Map" Grid.Row="1" ClipToBounds="True"/>
+    <StackPanel Grid.Row="2" Margin="22,8" Spacing="5">
+     <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Drag to pan · Scroll to zoom · Click to inspect" Classes="muted" FontSize="11"/><TextBlock Name="MapMode" Grid.Column="1" Text="ADM · PUBLIC ESI" Classes="caption" FontSize="9"/></Grid>
+     <Grid ColumnDefinitions="*,Auto"><TextBlock Name="AdmStatus" Text="Connecting to public ESI…" FontSize="10" Foreground="#8C9CB0" VerticalAlignment="Center"/><Button Name="RefreshAdm" Grid.Column="1" Content="Check ADM" FontSize="10" Padding="8,3"/></Grid>
+    </StackPanel>
+   </Grid>
+   <Border Grid.Column="2" BorderBrush="#243143" BorderThickness="1,0,0,0" Padding="18">
+<TabControl Name="OperationsTabs"><TabItem Header="Intel">    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+     <StackPanel Spacing="7"><TextBlock Text="Intel stream" FontSize="20" FontWeight="SemiBold"/><TextBlock Name="IntelState" Text="Automatically locating EVE chat logs…" Classes="muted" FontSize="11" TextWrapping="Wrap"/>
+      <TextBlock Name="IntelDiagnostics" Text="Waiting for first scan…" FontSize="11" TextWrapping="Wrap" Foreground="#C5D6E8"/>
+      <Button Name="ChooseLogs" Content="Change log folder…" HorizontalAlignment="Stretch"/>
+      <Button Name="AutoLogs" Content="Use automatic EVE folder" HorizontalAlignment="Stretch"/>
+      <TextBox Name="ChannelFilter" Watermark="Channel filename filter (optional)" FontSize="11"/>
+      <TextBlock Text="Reports expire from the map after 15 minutes. Channel filter applies to filenames." Classes="muted" FontSize="10" TextWrapping="Wrap"/>
+     </StackPanel>
+     <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="0,12,0,0"><Button Name="ToggleWatch" Content="Pause" FontSize="11"/><Button Name="DemoButton" Grid.Column="1" Content="Try demo" FontSize="11" HorizontalAlignment="Right"/></Grid>
+     <Border Grid.Row="2" Name="DemoBanner" IsVisible="False" Background="#42341C" CornerRadius="5" Padding="10" Margin="0,10,0,0"><TextBlock Text="DEMO REPORTS · synthetic intel, real map" Foreground="#F4CF84" TextWrapping="Wrap" FontSize="11"/></Border>
+     <TextBlock Grid.Row="3" Name="IntelCount" Text="0 REPORTS" Classes="caption" Margin="0,20,0,10"/>
+     <ListBox Grid.Row="4" Name="IntelList" Background="Transparent" Padding="0">
+      <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="0,6" Spacing="5"><TextBlock Text="{Binding Summary}" FontWeight="SemiBold" Foreground="#E4EDF6" FontSize="12" TextWrapping="Wrap"/><TextBlock Text="{Binding Body}" Foreground="#A6B5C8" FontSize="11" TextWrapping="Wrap"/><TextBlock Text="{Binding Meta}" Foreground="#77899F" FontSize="10" TextWrapping="Wrap"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
+     </ListBox>
+     <StackPanel Grid.Row="5" Spacing="8" Margin="0,12,0,0"><TextBlock Text="MANUAL INTEL" Classes="caption"/><TextBox Name="ManualIntel" Watermark="e.g. 1DQ1-A 3 neutrals on gate"/><Button Name="AddIntel" Content="Add local report" HorizontalAlignment="Stretch"/></StackPanel>
+    </Grid></TabItem>
+<TabItem Header="Live"><ScrollViewer><StackPanel Spacing="10" Margin="0,12">
+<TextBlock Text="Situational awareness" FontSize="19"/>
+<ComboBox Name="ActivityLayer" HorizontalAlignment="Stretch"/>
+<CheckBox Name="WormholeLayer" Content="Wormhole markers" IsChecked="True"/>
+<CheckBox Name="StormLayer" Content="Storm areas" IsChecked="True"/>
+<CheckBox Name="KillLayer" Content="Recent kill markers" IsChecked="True"/>
+<TextBlock Name="FeedStatus" Text="Connecting to public feeds…" TextWrapping="Wrap" Classes="muted" FontSize="10"/>
+<TextBlock Text="KILL FEED · CURRENT REGION" Classes="caption"/>
+<TextBlock Text="Public zKill reports since connection; may be delayed or incomplete. Double-click to open a killmail." TextWrapping="Wrap" Classes="muted" FontSize="10"/>
+<ListBox Name="KillList" Height="155" FontSize="11"/>
+<TextBlock Text="THERA / TURNUR CONNECTIONS" Classes="caption"/>
+<ListBox Name="WormholeList" Height="160" FontSize="11"/>
+<TextBlock Text="METALIMINAL STORMS" Classes="caption"/>
+<ListBox Name="StormList" Height="120" FontSize="11"/>
+<TextBlock Text="Storm rings: strong ≤1 gate, weak ≤3 gates. Verify wormhole size, expiry, mass and storm effects in game." TextWrapping="Wrap" Classes="muted" FontSize="10"/>
+</StackPanel></ScrollViewer></TabItem></TabControl>
+   </Border>
+  </Grid>
+  <Border Grid.Row="2" BorderBrush="#243143" BorderThickness="0,1,0,0" Padding="18,8"><Grid ColumnDefinitions="*,Auto"><TextBlock Name="Status" Text="Ready" FontSize="10" Foreground="#9AAABD"/><TextBlock Grid.Column="1" Text="Unofficial SMT prototype · Local intel · Public live feeds" FontSize="10" Foreground="#77899F"/></Grid></Border>
+ </Grid>
+</Window>

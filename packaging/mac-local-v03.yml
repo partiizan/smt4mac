@@ -1,0 +1,41 @@
+name: Build local Mac v0.3
+on:
+  push:
+    branches: [mac-local-v0.3]
+    paths: ['local-client/**', '.github/workflows/mac-local-v03.yml']
+permissions:
+  contents: read
+jobs:
+  mac:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Core regression tests
+        working-directory: local-client
+        run: dotnet run --project tests/Smt.Tests -c Release -- data/universe.json
+      - name: Automatic log ingestion desktop test
+        working-directory: local-client
+        run: dotnet run --project tests/Smt.AutoSmoke -c Release
+      - name: Build and verify Apple Silicon app
+        working-directory: local-client
+        run: |
+          bash packaging/build-mac.sh osx-arm64
+          codesign --verify --deep --strict --verbose=2 'dist/osx-arm64/SMT Mac Beta.app'
+          file 'dist/osx-arm64/SMT Mac Beta.app/Contents/MacOS/SmtMac'
+          /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' 'dist/osx-arm64/SMT Mac Beta.app/Contents/Info.plist'
+      - name: Package app and source
+        working-directory: local-client
+        run: |
+          mkdir -p /tmp/SMT-Mac-Beta-0.3/source
+          cp -R 'dist/osx-arm64/SMT Mac Beta.app' /tmp/SMT-Mac-Beta-0.3/
+          cp README.md UPSTREAM-LICENSE.txt /tmp/SMT-Mac-Beta-0.3/
+          rsync -a --exclude bin --exclude obj --exclude dist ./ /tmp/SMT-Mac-Beta-0.3/source/
+          ditto -c -k --sequesterRsrc --keepParent /tmp/SMT-Mac-Beta-0.3 /tmp/SMT-Mac-Beta-0.3-AppleSilicon.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SMT-Mac-Beta-0.3-AppleSilicon
+          path: /tmp/SMT-Mac-Beta-0.3-AppleSilicon.zip
+          retention-days: 30

@@ -1,0 +1,49 @@
+name: Build local Mac v0.6
+on:
+  push:
+    branches: [mac-local-v0.6]
+    paths: ['local-client/**', '.github/workflows/mac-local-v06.yml']
+permissions:
+  contents: read
+jobs:
+  mac:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Core regression tests
+        working-directory: local-client
+        run: dotnet run --project tests/Smt.Tests -c Release -- data/universe.json
+      - name: Operations regression tests
+        working-directory: local-client
+        run: dotnet run --project tests/Smt.OperationsTests -c Release -- data/universe.json --live
+      - name: Automatic log ingestion desktop test
+        working-directory: local-client
+        run: dotnet run --project tests/Smt.AutoSmoke -c Release
+      - name: Build and verify Apple Silicon app
+        working-directory: local-client
+        run: |
+          bash packaging/build-mac.sh osx-arm64
+          codesign --verify --deep --strict --verbose=2 'dist/osx-arm64/SMT Mac Beta.app'
+          file 'dist/osx-arm64/SMT Mac Beta.app/Contents/MacOS/SmtMac'
+          /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' 'dist/osx-arm64/SMT Mac Beta.app/Contents/Info.plist'
+      - name: Package app and source
+        working-directory: local-client
+        run: |
+          mkdir -p /tmp/SMT-Mac-Beta-0.6/source
+          cp -R 'dist/osx-arm64/SMT Mac Beta.app' /tmp/SMT-Mac-Beta-0.6/
+          cp README.md UPSTREAM-LICENSE.txt ansiblex-template.csv /tmp/SMT-Mac-Beta-0.6/
+          rsync -a --exclude bin --exclude obj --exclude dist ./ /tmp/SMT-Mac-Beta-0.6/source/
+          ditto -c -k --sequesterRsrc --keepParent /tmp/SMT-Mac-Beta-0.6 /tmp/SMT-Mac-Beta-0.6-AppleSilicon.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SMT-Mac-Beta-0.6-AppleSilicon
+          path: /tmp/SMT-Mac-Beta-0.6-AppleSilicon.zip
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SMT-v06-previews
+          path: local-client/screenshots/*.png
+          retention-days: 7
