@@ -1,0 +1,111 @@
+name: Build and release SMT4Mac
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: smt4mac-main
+  cancel-in-progress: false
+jobs:
+  mac:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check whether source migration is needed
+        id: source
+        run: |
+          if [ -f src/Smt.Desktop/Smt.Desktop.csproj ]; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Retrieve tested v0.8 source
+        if: steps.source.outputs.needed == 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: partiizan/adm-dashboard
+          ref: 300c1d4986b58622ffd222e1fe904c52c2950087
+          path: .migration
+          persist-credentials: false
+      - name: Publish standalone source
+        if: steps.source.outputs.needed == 'true'
+        run: |
+          rsync -a --exclude bin --exclude obj --exclude dist --exclude .git --exclude screenshots .migration/local-client/ ./
+          rm -rf .migration
+          rm -f packaging/mac-local-v08.yml
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('README.md')
+          s=p.read_text().replace('# SMT Mac Beta 0.8 — Apple Silicon','# SMT4Mac — Native macOS client')
+          s=s.replace('https://github.com/partiizan/adm-dashboard/tree/mac-local-v0.8/local-client','https://github.com/partiizan/smt4mac')
+          s=s.replace('## Install','## Download\n\n[Download v0.8 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.8.0/SMT-Mac-Beta-0.8-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)\n\nThe ZIP includes the compiled app and corresponding source. The installed app is currently named **SMT Mac Beta.app**.\n\n## Install')
+          s+='\n## Project provenance\n\nThis standalone repository was extracted from the native mac-local-v0.8 branch of partiizan/adm-dashboard at commit 300c1d4986b58622ffd222e1fe904c52c2950087. The ADM Dashboard website remains a separate project. Upstream SMT attribution and its MIT license are retained.\n'
+          p.write_text(s)
+          p=Path('src/Smt.Core/LiveApi.cs')
+          p.write_text(p.read_text().replace('https://github.com/partiizan/adm-dashboard','https://github.com/partiizan/smt4mac'))
+          Path('.gitignore').write_text('**/bin/\n**/obj/\ndist/\nscreenshots/\n.DS_Store\n')
+          Path('LICENSE').write_text(Path('UPSTREAM-LICENSE.txt').read_text())
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md LICENSE UPSTREAM-LICENSE.txt .gitignore Directory.Build.props ansiblex-template.csv data packaging src tests tools
+          git commit -m "Publish standalone v0.8 macOS source with upstream attribution"
+          git push origin HEAD:main
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Core regression tests
+        run: dotnet run --project tests/Smt.Tests -c Release -- data/universe.json
+      - name: Operations regression tests
+        run: dotnet run --project tests/Smt.OperationsTests -c Release -- data/universe.json --live
+      - name: Desktop integration tests
+        run: dotnet run --project tests/Smt.AutoSmoke -c Release
+      - name: Build and verify Apple Silicon app
+        run: |
+          bash packaging/build-mac.sh osx-arm64
+          codesign --verify --deep --strict --verbose=2 'dist/osx-arm64/SMT Mac Beta.app'
+          file 'dist/osx-arm64/SMT Mac Beta.app/Contents/MacOS/SmtMac'
+          /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' 'dist/osx-arm64/SMT Mac Beta.app/Contents/Info.plist'
+      - name: Package app and source
+        run: |
+          mkdir -p /tmp/SMT-Mac-Beta-0.8/source
+          cp -R 'dist/osx-arm64/SMT Mac Beta.app' /tmp/SMT-Mac-Beta-0.8/
+          cp README.md LICENSE UPSTREAM-LICENSE.txt ansiblex-template.csv /tmp/SMT-Mac-Beta-0.8/
+          git archive HEAD | tar -x -C /tmp/SMT-Mac-Beta-0.8/source
+          ditto -c -k --sequesterRsrc --keepParent /tmp/SMT-Mac-Beta-0.8 /tmp/SMT-Mac-Beta-0.8-AppleSilicon.zip
+          cd /tmp
+          shasum -a 256 SMT-Mac-Beta-0.8-AppleSilicon.zip > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SMT-Mac-Beta-0.8-AppleSilicon
+          path: /tmp/SMT-Mac-Beta-0.8-AppleSilicon.zip
+          retention-days: 30
+      - name: Publish v0.8 beta release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view v0.8.0 >/dev/null 2>&1; then
+            echo "v0.8.0 already published; preserving its existing assets."
+          else
+            cat > /tmp/release-notes.md <<'NOTES'
+          Native Apple Silicon macOS app, with source published separately from the ADM Dashboard website.
+
+          - Route endpoint autocomplete, including p-z → P-ZMZV.
+          - Automatic chat-log ingestion using the current user's Documents folder.
+          - ADM highlighting below 4.0 and 5.0.
+          - Public activity, kill feeds, wormholes and storms.
+          - Gate, Ansiblex and capital jump planning.
+          - Removed Pilots/SSO and localhost callback functionality.
+          - Region navigation protected from background refreshes.
+
+          **Download SMT-Mac-Beta-0.8-AppleSilicon.zip below.** It includes the self-contained app and corresponding source. No .NET installation is required.
+
+          Quit the previous app, unzip and move SMT Mac Beta.app into Applications. This beta is ad-hoc signed, not Apple-notarized; macOS may require Privacy & Security → Open Anyway. Allow Documents access for automatic EVE chat-log ingestion.
+
+          Tested on an Apple Silicon macOS runner: 61 core checks, 18 operations checks and desktop integration checks covering log ingestion, autocomplete, ADM settings, and region selection by mouse and keyboard.
+          NOTES
+            gh release create v0.8.0 /tmp/SMT-Mac-Beta-0.8-AppleSilicon.zip /tmp/SHA256SUMS.txt --target "$(git rev-parse HEAD)" --title "SMT4Mac v0.8 — Apple Silicon beta" --prerelease --notes-file /tmp/release-notes.md
+          fi
