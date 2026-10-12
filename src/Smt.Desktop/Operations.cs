@@ -40,7 +40,7 @@ public partial class MainWindow
             WireSystemActivation(Get<ListBox>(name),item=>(item as LiveItem)?.System);
         Get<ListBox>("KillList").DoubleTapped+=(_,_)=>{if(Get<ListBox>("KillList").SelectedItem is LiveItem {Id:>0} i)Browse($"https://zkillboard.com/kill/{i.Id}/");};
         Get<ComboBox>("RegionPicker").SelectionChanged+=(_,_)=>ApplyLive();
-        operationTimer.Tick+=(_,_)=>{_ = RefreshLive();};
+        operationTimer.Tick+=(_,_)=>{RefreshWormholeRows();_ = RefreshLive();};
         Opened+=(_,_)=>{operationTimer.Start();_ = RefreshLive();};
     }
     private void StopOperations(){operationTimer.Stop();liveApi.Dispose();}

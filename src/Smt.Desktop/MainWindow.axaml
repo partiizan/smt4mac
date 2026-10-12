@@ -94,7 +94,8 @@
        <TextBlock Text="HUB" Classes="caption"/><TextBlock Grid.Column="1" Text="DESTINATION / REGION" Classes="caption" TextWrapping="Wrap"/><TextBlock Grid.Column="2" Text="SIGNATURES" Classes="caption"/><TextBlock Grid.Column="3" Text="MAX SIZE" Classes="caption"/><TextBlock Grid.Column="4" Text="EXPIRES" Classes="caption"/><TextBlock Grid.Column="5" Text="ACTIONS" Classes="caption"/>
       </Grid>
       <Grid Grid.Row="3">
-       <ListBox Name="WormholeList" Background="Transparent" Padding="0" HorizontalContentAlignment="Stretch">
+       <ListBox Name="WormholeList" Background="Transparent" Padding="0">
+        <ListBox.Styles><Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.Styles>
         <ListBox.ItemTemplate><DataTemplate><Border BorderBrush="#243143" BorderThickness="0,0,0,1" Padding="0,9">
          <Grid ColumnDefinitions="74,*,146,78,80,122">
           <Border Background="#28304C" CornerRadius="5" Padding="5" Margin="0,0,10,0" VerticalAlignment="Center"><TextBlock Text="{Binding Hub}" FontSize="11" Foreground="#D9B6FF"/></Border>
