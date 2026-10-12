@@ -11,7 +11,7 @@ public sealed class LiveApi : IDisposable
     public LiveApi(HttpMessageHandler? handler=null)
     {
         http=handler==null?new():new(handler);http.Timeout=TimeSpan.FromSeconds(20);
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("SMT-Mac-Beta/0.8 (+https://github.com/partiizan/smt4mac)");
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("SMT-Mac-Beta/0.9 (+https://github.com/partiizan/smt4mac)");
     }
     public async Task<JsonElement> Json(string url,CancellationToken ct,int cacheSeconds=0)
     { using var doc=JsonDocument.Parse(await Text(url,ct,cacheSeconds)); return doc.RootElement.Clone(); }

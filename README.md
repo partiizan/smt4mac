@@ -2,7 +2,16 @@
 
 A native macOS map, intel and route-planning beta. Includes the self-contained `.app`; no Terminal launcher or .NET installation is required.
 
-## New in v0.8
+## New in v0.9
+
+- Intel and Live panels stay visible together. Drag the horizontal divider to resize them.
+- The Live panel contains a structured Eve-Scout Thera/Turnur table. Search destination, region or signature; filter by hub. Each row shows region/security, explicitly labeled hub/local signatures, maximum ship size and estimated expiry. Map focuses the destination; Copy copies the connection details. Unknown destinations cannot be mapped.
+- Connections are sorted by expiry, near-expiry entries are amber, expired entries are hidden and source failures are clearly labeled. Hover expiry for UTC expiry and reported update time. Eve-Scout opens the source site.
+- Removed hourly ship/pod/NPC/jump activity layers and their API polling. Kills, wormhole markers and storm areas remain available by default.
+- Log configuration and diagnostics are under an expander, keeping the intel stream visible. Existing log paths, routes and ADM settings are preserved.
+- Minimum window size is 1280 × 850; default is 1560 × 1000. Map geography uses the real bundled data, not the illustrative design preview.
+
+## Previous: v0.8
 
 - Start and destination suggest system names from the first character, case-insensitively. Type `p-z` to find **P-ZMZV**; click a suggestion or use Down/Enter to complete the name.
 - Removed the Pilots tab, character/fleet tracking, EVE login, callback listener and Keychain integration.
@@ -19,7 +28,7 @@ After installing, the app rereads recent history automatically. Your earlier tes
 
 ## Download
 
-[Download v0.8 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.8.0/SMT-Mac-Beta-0.8-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
+[Download v0.9 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.9.0/SMT-Mac-Beta-0.9-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
 
 The ZIP includes the compiled app and corresponding source. The installed app is currently named **SMT Mac Beta.app**.
 
@@ -30,14 +39,13 @@ The ZIP includes the compiled app and corresponding source. The installed app is
 3. Open the app. This is ad-hoc signed, not Apple-notarized. If macOS blocks it, use System Settings → Privacy & Security → Open Anyway after reviewing the app's origin.
 4. Allow Documents access when requested. Intel automatically scans `~/Documents/EVE/logs/chatlogs` every two seconds. If an old custom folder was saved, click **Use automatic EVE folder**.
 
-Existing region, ADM and log settings are retained. Public ADM, activity, wormholes, storms, kills and local logs need no login.
+Existing region, ADM and log settings are retained. Public ADM, wormholes, storms, kills and local logs need no login.
 
 ## What's included
 
 | Area | Beta behavior |
 |---|---|
 | Kills | zKillboard R2Z2 feed from connection onward; current-region list; recent kill markers; double-click opens the killmail |
-| Activity | ESI last-hour ship/pod/NPC kills and ship jumps; proportional map rings; counts on selected-system details |
 | Wormholes | Public Eve-Scout Thera/Turnur connection lists, known-space endpoint markers, signatures, ship-size limit and expiry |
 | Storms | Eve-Scout Rescue storm centers/types; strong one-gate and weak three-gate areas |
 | Ansiblex | Import bidirectional links from a simple CSV; persist the network; purple map links; optional inclusion in shortest-hop routing |
@@ -60,7 +68,6 @@ A geometrically reachable system is not a guaranteed usable cyno. Confirm cynos,
 ## Refresh and freshness
 
 - Intel: every 2 seconds; reports expire on-map after 15 minutes.
-- Activity: checked every 5 minutes; ESI data is an hourly aggregate and may be cached longer.
 - Wormholes: every 2 minutes; expired connections are removed. Mass and actual collapse are not independently verified.
 - Storms: every 15 minutes; depends on the public HTML table. A parsing or network failure is displayed and retained data may be stale.
 - Kills: polls about every 6 seconds and catches up in bounded batches. Public reports may arrive late; list retains up to 300 from the last hour, markers last 15 minutes. This is not a full historical killboard.
@@ -73,7 +80,7 @@ Rate-limit backoff and server cache expiry are respected. Feed status labels dis
 1. Launch with EVE running and send a system name in your intel channel. Confirm automatic appearance; restart the app and try a new chat session.
 2. Type `p-z` into each route endpoint, accept P-ZMZV, and verify suggestions narrow as you type.
 3. Visit Period Basis, Delve and Querious while intel and public feeds refresh. Confirm the map stays in the selected region.
-4. Switch all four activity layers. Inspect counts in selected-system details. Open a killmail from the current-region list.
+4. Keep Intel and Live visible while reports arrive. Open a killmail from the current-region list.
 5. Select a Thera/Turnur connection and a storm. Compare signatures, expiry and locations with the public sources.
 6. Import a known Ansiblex CSV, compare gate-only and bridge-enabled routes, then test an avoided endpoint and a waypoint.
 7. Plan a known capital route for your hull/JDC. Confirm every leg is within range. Compare to in-game range and existing operational routes.

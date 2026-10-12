@@ -28,13 +28,15 @@ public partial class MainWindow
         Get<ComboBox>("RouteMode").ItemsSource=new[]{"Stargates", "Gates + Ansiblex", "Capital jumps"};Get<ComboBox>("RouteMode").SelectedIndex=0;
         Get<ComboBox>("ShipPicker").ItemsSource=Navigation.Ships;Get<ComboBox>("ShipPicker").SelectedIndex=0;
         Get<ComboBox>("RouteMode").SelectionChanged+=(_,_)=>UpdateRange();Get<ComboBox>("ShipPicker").SelectionChanged+=(_,_)=>UpdateRange();Get<NumericUpDown>("Calibration").ValueChanged+=(_,_)=>UpdateRange();UpdateRange();
-        Get<ComboBox>("ActivityLayer").ItemsSource=new[]{"Activity layer off","Ship kills · last hour","Pod kills · last hour","NPC kills · last hour","Ship jumps · last hour"};Get<ComboBox>("ActivityLayer").SelectedIndex=0;
-        Get<ComboBox>("ActivityLayer").SelectionChanged+=(_,_)=>ApplyLive();
-        foreach(var n in new[]{"WormholeLayer","StormLayer","KillLayer"})Get<CheckBox>(n).IsCheckedChanged+=(_,_)=>ApplyLive();
+        Get<ComboBox>("WormholeHub").ItemsSource=new[]{"All hubs","Thera","Turnur"};
+        Get<ComboBox>("WormholeHub").SelectedIndex=0;
+        Get<ComboBox>("WormholeHub").SelectionChanged+=(_,_)=>RefreshWormholeRows();
+        Get<TextBox>("WormholeSearch").TextChanged+=(_,_)=>RefreshWormholeRows();
+        Get<Button>("EveScoutLink").Click+=(_,_)=>Browse("https://www.eve-scout.com/");
         Get<Button>("ImportBridges").Click+=async(_,_)=>await ImportBridgesAsync();
         Get<Button>("ClearBridges").Click+=(_,_)=>{try{PersistBridges([]);bridges=[];UpdateBridges();}catch(Exception e){SetStatus(e.Message);}};
         try{var path=Path.Combine(SettingsStore.Folder,"ansiblex.csv");if(File.Exists(path))bridges=Navigation.ParseBridges(File.ReadAllText(path),universe);}catch(Exception e){SetStatus("Ansiblex import unavailable: "+e.Message);}UpdateBridges();
-        foreach(var name in new[]{"KillList","WormholeList","StormList"})
+        foreach(var name in new[]{"KillList","StormList"})
             WireSystemActivation(Get<ListBox>(name),item=>(item as LiveItem)?.System);
         Get<ListBox>("KillList").DoubleTapped+=(_,_)=>{if(Get<ListBox>("KillList").SelectedItem is LiveItem {Id:>0} i)Browse($"https://zkillboard.com/kill/{i.Id}/");};
         Get<ComboBox>("RegionPicker").SelectionChanged+=(_,_)=>ApplyLive();
@@ -95,19 +97,18 @@ public partial class MainWindow
     private void ApplyLive()
     {
         if(situation==null)return;
-        Map.Activity=situation.Activity;Map.ActivityMode=Get<ComboBox>("ActivityLayer").SelectedIndex;
-        Map.Wormholes=Get<CheckBox>("WormholeLayer").IsChecked==true?situation.Wormholes:[];
-        Map.StormAreas=Get<CheckBox>("StormLayer").IsChecked==true?situation.StormAreas():new();
-        Map.Kills=Get<CheckBox>("KillLayer").IsChecked==true?situation.Kills:[];
+        Map.Wormholes=situation.Wormholes;
+        Map.StormAreas=situation.StormAreas();
+        Map.Kills=situation.Kills;
         var region=(Get<ComboBox>("RegionPicker").SelectedItem as Region)?.Name;
         Get<ListBox>("KillList").ItemsSource=situation.Kills.Where(k=>universe.ById.TryGetValue(k.SystemId,out var s) && s.Region==region).Select(k=>new LiveItem(universe.ById[k.SystemId].Name,$"{universe.ById[k.SystemId].Name} · {k.Time:HH:mm} UTC\n{ships.GetValueOrDefault(k.ShipType,$"Type {k.ShipType}")} · {k.Value:N0} ISK",k.Id)).ToArray();
-        Get<ListBox>("WormholeList").ItemsSource=situation.Wormholes.Select(w=>new LiveItem(w.System,$"{w.System} ↔ {w.Hub}\n{w.InSignature} / {w.OutSignature} · {w.Size}\nExpires {w.Expires:MMM d HH:mm} UTC")).ToArray();
         Get<ListBox>("StormList").ItemsSource=situation.Storms.Select(s=>new LiveItem(s.System,$"{s.System} · {s.Type}\n{s.Name}")).ToArray();
+        RefreshWormholeRows();
         Get<TextBlock>("FeedStatus").Text=string.Join('\n',situation.Status.Values);Map.InvalidateVisual();UpdateOperationalDetails();
     }
     private void UpdateOperationalDetails()
     {
         if(selected==null || situation==null)return;var sys=universe.Systems[selected];
-        Get<TextBlock>("SystemInfo").Text=$"{sys.Region}\nSecurity {sys.Security:0.00} · {sys.Jumps.Length} gates"+(sys.Station?"\nNPC station present":"")+(situation.Activity.TryGetValue(sys.Id,out var a)?$"\nLast hour: {a.Ships} ships · {a.Pods} pods\n{a.Npcs} NPCs · {a.Jumps} jumps":"");
+        Get<TextBlock>("SystemInfo").Text=$"{sys.Region}\nSecurity {sys.Security:0.00} · {sys.Jumps.Length} gates"+(sys.Station?"\nNPC station present":"");
     }
 }

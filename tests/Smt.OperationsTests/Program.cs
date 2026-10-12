@@ -25,10 +25,11 @@ var capital=Navigation.Plan(u,"1DQ1-A","5BTK-M",[],none,false,[],7);
 Check(capital.Legs.Count>0 && capital.Legs.All(l=>l.Kind=="Cyno" && l.LightYears<=7 && Navigation.JumpDestination(l.To)),"Capital path respects range and destination restrictions");
 var waypoint=Navigation.Plan(u,"1DQ1-A","1DQ1-A",["5BTK-M"],none,false,bridges);
 Check(waypoint.Systems.Select(s=>s.Name).SequenceEqual(new[]{"1DQ1-A","5BTK-M","1DQ1-A"}),"Ordered waypoint round trip");
-var activity=Situational.ParseActivity(Json("[{\"system_id\":1,\"ship_kills\":3,\"pod_kills\":2,\"npc_kills\":5}]"),Json("[{\"system_id\":1,\"ship_jumps\":40},{\"system_id\":2,\"ship_jumps\":7}]"));
-Check(activity[1].Ships==3 && activity[1].Jumps==40 && activity[2].Ships==0,"Activity feed joins kills and jumps");
 var wh=Situational.ParseWormholes(Json("[{\"signature_type\":\"wormhole\",\"in_system_name\":\"Jita\",\"expires_at\":\"2099-01-01T00:00:00Z\",\"completed\":true},{\"signature_type\":\"wormhole\",\"in_system_name\":\"Amarr\",\"expires_at\":\"2000-01-01T00:00:00Z\"}]"),"Thera",DateTimeOffset.UtcNow);
 Check(wh.Count==1 && wh[0].System=="Jita","Expired wormholes removed");
+var enriched=Situational.ParseWormholes(Json("""[{"signature_type":"wormhole","in_system_name":"P-ZMZV","in_region_name":"Querious","in_system_class":"ns","in_signature":"ABC-123","out_signature":"XYZ-456","max_ship_size":"large","updated_at":"2026-10-12T12:00:00Z","expires_at":"2099-01-01T00:00:00Z","completed":true},{"signature_type":"wormhole","in_system_name":"Jita","expires_at":"2099-01-01T00:00:00Z","completed":false}]"""),"Thera",DateTimeOffset.UtcNow);
+Check(enriched.Count==1 && enriched[0].Region=="Querious" && enriched[0].SecurityClass=="ns" && enriched[0].Updated!=null,"Eve-Scout metadata retained; incomplete connections excluded");
+Check(enriched[0].InSignature=="ABC-123" && enriched[0].OutSignature=="XYZ-456" && enriched[0].Size=="large","Local and hub signatures and maximum ship size retained");
 var storms=Situational.ParseStorms("<table><tr><td>Delve</td><td>1DQ1-A</td><td>Plasma &amp; A</td><td>Plasma</td></tr></table>",u);
 Check(storms.Count==1 && storms[0].Name=="Plasma & A","Storm HTML parsing and entity decoding");
 var kill=Situational.ParseKill(Json("{\"killmail_id\":123,\"esi\":{\"solar_system_id\":30000142,\"killmail_time\":\"2026-10-07T12:00:00Z\",\"victim\":{\"ship_type_id\":670}},\"zkb\":{\"totalValue\":500}}"));
@@ -41,6 +42,6 @@ if(args.Contains("--live"))
 {
  using var publicApi=new LiveApi();var live=new Situational(publicApi,u);await live.Refresh(default);
  foreach(var status in live.Status.Values)Console.WriteLine("LIVE: "+status);
- Console.WriteLine($"LIVE COUNTS: activity={live.Activity.Count}; wormholes={live.Wormholes.Count}; storms={live.Storms.Count}; kills={live.Kills.Count}");
+ Console.WriteLine($"LIVE COUNTS: wormholes={live.Wormholes.Count}; storms={live.Storms.Count}; kills={live.Kills.Count}");
 }
 sealed class Stub(Func<HttpRequestMessage,HttpResponseMessage> respond):HttpMessageHandler{public int Calls;protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage req,CancellationToken ct){Calls++;return Task.FromResult(respond(req));}}

@@ -2,13 +2,11 @@ using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 namespace Smt.Core;
-public sealed record Activity(long SystemId,int Ships,int Pods,int Npcs,int Jumps);
-public sealed record Wormhole(string Hub,string System,string InSignature,string OutSignature,string Size,DateTimeOffset Expires);
+public sealed record Wormhole(string Hub,string System,string InSignature,string OutSignature,string Size,DateTimeOffset Expires,string Region="",string SecurityClass="",DateTimeOffset? Updated=null);
 public sealed record Storm(string System,string Name,string Type);
 public sealed record Kill(long Id,long SystemId,long ShipType,DateTimeOffset Time,double Value);
 public sealed class Situational(LiveApi api,Universe universe)
 {
-    public Dictionary<long,Activity> Activity {get;private set;}=[];
     public List<Wormhole> Wormholes {get;private set;}=[];
     public List<Storm> Storms {get;private set;}=[];
     public List<Kill> Kills {get;}=[];
@@ -17,12 +15,6 @@ public sealed class Situational(LiveApi api,Universe universe)
     private long sequence;
     public async Task Refresh(CancellationToken ct)
     {
-        await Attempt("Activity",TimeSpan.FromMinutes(5),async()=>
-        {
-            var kills=await api.Json("https://esi.evetech.net/latest/universe/system_kills/",ct,cacheSeconds:300);
-            var jumps=await api.Json("https://esi.evetech.net/latest/universe/system_jumps/",ct,cacheSeconds:300);
-            Activity=ParseActivity(kills,jumps);
-        });
         await Attempt("Wormholes",TimeSpan.FromMinutes(2),async()=>
         {
             var result=new List<Wormhole>();
@@ -61,20 +53,13 @@ public sealed class Situational(LiveApi api,Universe universe)
         catch(Exception e) when(e is HttpRequestException or JsonException or InvalidDataException or FormatException or InvalidOperationException or RegexMatchTimeoutException)
         {Status[name]=$"{name} · unavailable; retained data may be stale ({e.GetType().Name})";next[name]=DateTimeOffset.UtcNow.AddSeconds(60);}
     }
-    public static Dictionary<long,Activity> ParseActivity(JsonElement kills,JsonElement jumps)
-    {
-        var result=new Dictionary<long,Activity>();
-        foreach(var k in kills.EnumerateArray()){var id=k.Number("system_id");result[id]=new(id,(int)k.Number("ship_kills"),(int)k.Number("pod_kills"),(int)k.Number("npc_kills"),0);}
-        foreach(var j in jumps.EnumerateArray()){var id=j.Number("system_id");result[id]=(result.GetValueOrDefault(id)??new(id,0,0,0,0)) with{Jumps=(int)j.Number("ship_jumps")};}
-        return result;
-    }
     public static List<Wormhole> ParseWormholes(JsonElement root,string hub,DateTimeOffset now)
     {
         var list=new List<Wormhole>();
         foreach(var w in root.EnumerateArray())
         {
             if(w.Str("signature_type")!="wormhole" || !DateTimeOffset.TryParse(w.Str("expires_at"),out var expiry) || expiry<=now || w.Str("in_system_name")=="" || w.TryGetProperty("completed",out var done) && done.ValueKind==JsonValueKind.False)continue;
-            list.Add(new(hub,w.Str("in_system_name"),w.Str("in_signature"),w.Str("out_signature"),w.Str("max_ship_size"),expiry));
+            list.Add(new(hub,w.Str("in_system_name"),w.Str("in_signature"),w.Str("out_signature"),w.Str("max_ship_size"),expiry,w.Str("in_region_name"),w.Str("in_system_class"),DateTimeOffset.TryParse(w.Str("updated_at"),out var updated)?updated:null));
         }
         return list;
     }

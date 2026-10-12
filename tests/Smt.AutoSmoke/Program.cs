@@ -43,8 +43,7 @@ try
  if(window.FindControl<StarMap>("Map")!.RouteLegs.Any(l=>l.LightYears>7))throw new Exception("Capital range exceeded");
  Directory.CreateDirectory("screenshots");
  await Task.Delay(300);
- using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v08-intel.png");
- for(int tab=1;tab<=1;tab++){window.FindControl<TabControl>("OperationsTabs")!.SelectedIndex=tab;await Task.Delay(300);using var frame=window.CaptureRenderedFrame();frame?.Save($"screenshots/v08-tab{tab}.png");}
+ using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v09-intel.png");
  if(!window.FindControl<TextBlock>("IntelDiagnostics")!.Text!.Contains("Last report:"))throw new Exception("Missing intel diagnostics");
  if(!window.FindControl<TextBlock>("IntelState")!.Text!.Contains("~/Documents/EVE/logs/"))throw new Exception("Default path is not displayed relative to current user");
  Console.WriteLine("PASS: Intel diagnostics and current-user default path visible");
@@ -52,13 +51,9 @@ try
  admPicker.SelectedIndex=1;if(window.FindControl<StarMap>("Map")!.AdmThreshold!=5)throw new Exception("ADM <5 selection failed");
  admPicker.SelectedIndex=2;if(window.FindControl<StarMap>("Map")!.AdmThreshold!=4 || SettingsStore.Load().AdmThreshold!=4)throw new Exception("ADM <4 persistence failed");
  Console.WriteLine("PASS: ADM threshold controls update map and persist preference");
- window.FindControl<TabControl>("OperationsTabs")!.SelectedIndex=0;
- await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v08-intel.png");
- var tabs=window.FindControl<TabControl>("OperationsTabs")!;
- if(tabs.ItemCount!=2 || window.FindControl<Control>("LoginCharacter")!=null ||
-    typeof(Universe).Assembly.GetType("Smt.Core.CharacterService")!=null)
-     throw new Exception("Pilot/SSO removal incomplete");
- Console.WriteLine("PASS: Only Intel and Live tabs; SSO implementation absent");
+ await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v09-intel.png");
+ if(window.FindControl<Control>("OperationsTabs")!=null || window.FindControl<Control>("ActivityLayer")!=null || !window.FindControl<Border>("IntelPanel")!.IsVisible || !window.FindControl<Border>("LivePanel")!.IsVisible)throw new Exception("Persistent panel layout failed");
+ Console.WriteLine("PASS: Intel and Live both visible; activity controls absent");
  var regionPicker=window.FindControl<ComboBox>("RegionPicker")!;
  var regions=regionPicker.ItemsSource!.Cast<Region>().ToArray();
  foreach(var name in new[]{"Period Basis","Delve","Querious"})
@@ -117,7 +112,37 @@ try
      box.IsDropDownOpen=false;
  }
  Console.WriteLine("PASS: Start and destination suggest P-ZMZV for p-z and accept selection");
- await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v08-intel.png");
+ await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v09-intel.png");
+ // Deterministic Eve-Scout fixtures verify filtering and row actions independently of live feed contents.
+ var live=(Situational)typeof(MainWindow).GetField("situation",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(window)!;
+ var retained=live.Wormholes.ToArray();live.Wormholes.Clear();
+ var now=DateTimeOffset.UtcNow;
+ live.Wormholes.AddRange(new[]{new Wormhole("Thera","P-ZMZV","ABC-123","XYZ-456","large",now.AddHours(1),"Querious","ns",now),new Wormhole("Turnur","Jita","DEF-789","UVW-234","medium",now.AddHours(6),"The Forge","hs",now),new Wormhole("Thera","Amarr","OLD-123","OLD-456","large",now.AddMinutes(-1),"Domain","hs",now)});
+ var search=window.FindControl<TextBox>("WormholeSearch")!;
+ var hubs=window.FindControl<ComboBox>("WormholeHub")!;
+ var connections=window.FindControl<ListBox>("WormholeList")!;
+ search.Text="querious";await Task.Delay(150);
+ if(connections.ItemCount!=1 || connections.ItemsSource!.Cast<WormholeRow>().Single().System!="P-ZMZV")throw new Exception("Region search failed");
+ var row=connections.ItemsSource!.Cast<WormholeRow>().Single();
+ if(!row.Signatures.Contains("Thera: XYZ-456") || !row.Signatures.Contains("Local: ABC-123") || !row.CopyText.Contains("large"))throw new Exception("Connection labels/copy data reversed or missing");
+ var mapButton=connections.GetVisualDescendants().OfType<Button>().First(b=>b.Content?.ToString()=="Map");
+ mapButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+ if(window.FindControl<TextBlock>("SystemName")!.Text!="P-ZMZV")throw new Exception("Connection map action failed");
+ search.Text="";hubs.SelectedIndex=2;
+ if(connections.ItemCount!=1 || connections.ItemsSource!.Cast<WormholeRow>().Single().Hub!="Turnur")throw new Exception("Hub filter failed");
+ hubs.SelectedIndex=0;search.Text="does-not-exist";
+ if(connections.ItemCount!=0 || !window.FindControl<TextBlock>("WormholeEmpty")!.IsVisible)throw new Exception("Empty filter state failed");
+ search.Text="";
+ if(connections.ItemCount!=2)throw new Exception("Expired connection remains visible");
+ Console.WriteLine("PASS: Wormhole region/hub filters, empty state, expired removal, signature orientation and map action");
+ await Task.Delay(200);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v09-fixtures.png");
+ window.Width=1280;window.Height=850;await Task.Delay(300);
+ if(window.FindControl<Border>("LivePanel")!.Bounds.Height<280 || window.FindControl<ListBox>("IntelList")!.Bounds.Height<30 || connections.Bounds.Height<50)throw new Exception("Minimum-size panels unusable");
+ using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v09-small.png");
+ Console.WriteLine("PASS: Intel stream and connection table remain usable at 1280 x 850");
+ window.Width=1560;window.Height=1000;
+ live.Wormholes.Clear();live.Wormholes.AddRange(retained);search.Text=" ";
+ await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v09-live.png");
  Console.WriteLine("Automatic desktop ingestion smoke checks passed on "+System.Runtime.InteropServices.RuntimeInformation.OSDescription);
 }
 catch(Exception error) { failure=error; }

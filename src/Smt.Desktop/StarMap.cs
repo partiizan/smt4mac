@@ -21,8 +21,6 @@ public sealed class StarMap : Control
     public IReadOnlyList<Kill> Kills { get; set; } = [];
     public IReadOnlyList<Wormhole> Wormholes { get; set; } = [];
     public Dictionary<string,int> StormAreas { get; set; } = [];
-    public IReadOnlyDictionary<long,Activity> Activity { get; set; } = new Dictionary<long,Activity>();
-    public int ActivityMode { get; set; }
     public double? AdmThreshold { get; set; }
     public bool ShowAdm { get; set; } = true;
     public bool AdmStale { get; set; }
@@ -113,11 +111,6 @@ public sealed class StarMap : Control
             if(Sovereignty.TryGetValue(sys.Id,out var filteredSov) && AdmFilter.Matches(filteredSov.Adm,AdmThreshold))
                 c.DrawEllipse(null,new Pen(Brush("#FFC65C"),3),p,22,22);
             if(StormAreas.TryGetValue(n.Name,out var strength))c.DrawEllipse(Brush(strength==2?"#446E55AE":"#226E55AE"),new Pen(Brush("#987BD0"),.5),p,strength==2?25:20,strength==2?25:20);
-            if(ActivityMode>0 && Activity.TryGetValue(sys.Id,out var a))
-            {
-                var count=ActivityMode switch {1=>a.Ships,2=>a.Pods,3=>a.Npcs,4=>a.Jumps,_=>0};
-                if(count>0){var radius=7+Math.Min(23,Math.Log10(count+1)*8);c.DrawEllipse(Brush("#3377B9F3"),new Pen(Brush("#77B9F3"),1),p,radius,radius);Text(c,count.ToString(),new Point(p.X,p.Y-24),Brush("#77B9F3"),10);}
-            }
             if(Wormholes.Any(w=>w.System==n.Name && w.Expires>DateTimeOffset.UtcNow))Text(c,"WH",new Point(p.X-17,p.Y-15),Brush("#D9B6FF"),10);
             if(Kills.Any(k=>k.SystemId==sys.Id && k.Time>DateTimeOffset.UtcNow.AddMinutes(-15)))Text(c,"×",new Point(p.X+18,p.Y+3),Brush("#FF776F"),17);
             var color=Brush(sys.Security>=.45?"#75D3BF":sys.Security>0?"#EBC077":"#C78C9B");

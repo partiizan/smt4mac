@@ -25,7 +25,7 @@ public sealed class SovereigntyClient : IDisposable
         this.cacheFile=cacheFile; this.clock=clock ?? (()=>DateTimeOffset.UtcNow);
         http=handler==null?new HttpClient():new HttpClient(handler);
         http.Timeout=TimeSpan.FromSeconds(25); http.MaxResponseContentBufferSize=8*1024*1024;
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("SMT-Mac-Beta/0.8.0");
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("SMT-Mac-Beta/0.9.0");
         http.DefaultRequestHeaders.Add("X-Compatibility-Date","2026-05-19");
         http.DefaultRequestHeaders.Accept.ParseAdd("application/json");
         try
