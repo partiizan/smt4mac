@@ -130,9 +130,9 @@ try
  if(window.FindControl<TextBlock>("SystemName")!.Text!="P-ZMZV")throw new Exception("Connection map action failed");
  search.Text="";hubs.SelectedIndex=2;
  if(connections.ItemCount!=1 || connections.ItemsSource!.Cast<WormholeRow>().Single().Hub!="Turnur")throw new Exception("Hub filter failed");
- hubs.SelectedIndex=0;search.Text="does-not-exist";
+ hubs.SelectedIndex=0;search.Text="does-not-exist";await Task.Delay(150);
  if(connections.ItemCount!=0 || !window.FindControl<TextBlock>("WormholeEmpty")!.IsVisible)throw new Exception("Empty filter state failed");
- search.Text="";
+ search.Text="";await Task.Delay(150);
  if(connections.ItemCount!=2)throw new Exception("Expired connection remains visible");
  Console.WriteLine("PASS: Wormhole region/hub filters, empty state, expired removal, signature orientation and map action");
  await Task.Delay(200);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v09-fixtures.png");
