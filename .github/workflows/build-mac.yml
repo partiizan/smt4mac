@@ -34,25 +34,25 @@ jobs:
           /tmp/capture-smoke "$PWD/dist/osx-arm64/SMT4Mac.app/Contents/MacOS/libLocalCapture.dylib"
       - name: Package app and source
         run: |
-          mkdir -p /tmp/SMT4Mac-0.11.1/source
-          cp -R 'dist/osx-arm64/SMT4Mac.app' /tmp/SMT4Mac-0.11.1/
-          cp RELEASE-v0.11.1.md RELEASE-v0.10.md README.md LICENSE UPSTREAM-LICENSE.txt ansiblex-template.csv /tmp/SMT4Mac-0.11.1/
-          git archive HEAD | tar -x -C /tmp/SMT4Mac-0.11.1/source
-          ditto -c -k --sequesterRsrc --keepParent /tmp/SMT4Mac-0.11.1 /tmp/SMT4Mac-0.11.1-AppleSilicon.zip
+          mkdir -p /tmp/SMT4Mac-0.12.0/source
+          cp -R 'dist/osx-arm64/SMT4Mac.app' /tmp/SMT4Mac-0.12.0/
+          cp RELEASE-v0.12.0.md RELEASE-v0.10.md README.md LICENSE UPSTREAM-LICENSE.txt ansiblex-template.csv /tmp/SMT4Mac-0.12.0/
+          git archive HEAD | tar -x -C /tmp/SMT4Mac-0.12.0/source
+          ditto -c -k --sequesterRsrc --keepParent /tmp/SMT4Mac-0.12.0 /tmp/SMT4Mac-0.12.0-AppleSilicon.zip
           cd /tmp
-          shasum -a 256 SMT4Mac-0.11.1-AppleSilicon.zip > SHA256SUMS.txt
+          shasum -a 256 SMT4Mac-0.12.0-AppleSilicon.zip > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: SMT4Mac-0.11.1-AppleSilicon
-          path: /tmp/SMT4Mac-0.11.1-AppleSilicon.zip
+          name: SMT4Mac-0.12.0-AppleSilicon
+          path: /tmp/SMT4Mac-0.12.0-AppleSilicon.zip
           retention-days: 30
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: SMT-v011-previews
+          name: SMT-v012-previews
           path: screenshots/*.png
           retention-days: 7
-      - name: Publish v0.11.1 beta release
+      - name: Publish v0.12.0 beta release
         if: github.ref == 'refs/heads/main' 
         env:
           GH_TOKEN: ${{ github.token }}
@@ -60,8 +60,8 @@ jobs:
         run: |
           latest=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq .object.sha)
           if [[ "$latest" != "$GITHUB_SHA" ]]; then echo "Superseded build; skipping release."; exit 0; fi
-          if gh release view v0.11.1 >/dev/null 2>&1; then
-            echo "v0.11.1 already published; preserving its existing assets."
+          if gh release view v0.12.0 >/dev/null 2>&1; then
+            echo "v0.12.0 already published; preserving its existing assets."
           else
-            gh release create v0.11.1 /tmp/SMT4Mac-0.11.1-AppleSilicon.zip /tmp/SHA256SUMS.txt --target "$(git rev-parse HEAD)" --title "SMT4Mac v0.11.1 — Apple Silicon beta" --prerelease --notes-file RELEASE-v0.11.1.md
+            gh release create v0.12.0 /tmp/SMT4Mac-0.12.0-AppleSilicon.zip /tmp/SHA256SUMS.txt --target "$(git rev-parse HEAD)" --title "SMT4Mac v0.12.0 — Apple Silicon beta" --prerelease --notes-file RELEASE-v0.12.0.md
           fi

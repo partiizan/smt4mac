@@ -51,7 +51,9 @@ public partial class MainWindow : Window
         var picker=Get<ComboBox>("RegionPicker"); picker.ItemsSource=universe.Data.Regions.OrderBy(r=>r.Name).ToArray();
         picker.SelectionChanged+=(_,_)=>ChangeRegion();
         picker.SelectedItem=universe.Data.Regions.FirstOrDefault(r=>r.Name==settings.Region) ?? universe.Data.Regions[0];
-        Get<TextBox>("ChannelFilter").Text=settings.ChannelFilter;
+        settings=settings with{IntelChannels=settings.IntelChannels ?? [string.IsNullOrWhiteSpace(settings.ChannelFilter)?"Intel.WOMP":IntelChannel.Name(settings.ChannelFilter.Trim())]};
+        Get<Button>("ChooseChannels").Click+=(_,_)=>ShowChannelSettings();
+        UpdateChannelSummary();
         tailer=new LogTailer(LogFolderLocator.Resolve(settings.LogFolder));
         Map.SystemSelected+=name=>SelectSystem(name);
         Get<Button>("FitMap").Click+=(_,_)=>Map.Fit();
@@ -63,12 +65,6 @@ public partial class MainWindow : Window
             settings=settings with {LogFolder=""};
             tailer=new LogTailer(LogFolderLocator.Resolve());reports.Clear();RefreshIntel();
             Save();UpdateWatchState();await PollLogs();
-        };
-        Get<TextBox>("ChannelFilter").TextChanged+=(_,_)=>
-        {
-            settings=settings with {ChannelFilter=Get<TextBox>("ChannelFilter").Text ?? ""};
-            reports.Clear(); if(tailer!=null) tailer=new LogTailer(tailer.Folder); RefreshIntel();
-            Save();
         };
         WireSystemActivation(Get<ListBox>("IntelList"),item=>(item as IntelItem)?.Report.Systems.FirstOrDefault());
         Get<CheckBox>("ShowAdm").IsCheckedChanged+=(_,_)=> { Map.ShowAdm=Get<CheckBox>("ShowAdm").IsChecked==true; Map.InvalidateVisual(); };
@@ -202,13 +198,13 @@ public partial class MainWindow : Window
         if(polling) { Map.InvalidateVisual(); return; }
         var resolved=LogFolderLocator.Resolve(settings.LogFolder);
         if(tailer==null || tailer.Folder!=resolved) tailer=new LogTailer(resolved);
-        var current=tailer; var filter=settings.ChannelFilter; polling=true;
+        var current=tailer; var channels=settings.IntelChannels ?? ["Intel.WOMP"]; polling=true;
         try
         {
             var batch=await Task.Run(()=>
             {
-                var lines=current.Poll();
-                var filtered=lines.Where(x=>string.IsNullOrWhiteSpace(filter)||x.Source.Contains(filter,StringComparison.OrdinalIgnoreCase)).ToArray();
+                var lines=current.Poll(source=>IntelChannel.Selected(source,channels));
+                var filtered=lines.ToArray();
                 var matches=filtered.Select(x=>parser.Parse(x.Line,x.Source,DateTimeOffset.UtcNow)).Where(r=>r!=null).Cast<IntelReport>().ToArray();
                 var now=DateTimeOffset.UtcNow;
                 var recent=matches.Where(r=>r.Time>=now.AddHours(-24) && r.Time<=now.AddMinutes(1)).ToArray();
@@ -221,7 +217,7 @@ public partial class MainWindow : Window
             if(batch.Recent.Length>0)lastIntelMatch=DateTimeOffset.UtcNow;
             if(batch.LineCount>0)lastReadSummary=$"Last batch: {batch.LineCount} lines · {batch.Filtered} pass channel filter · {batch.Recent.Length} recent reports · {batch.Matches-batch.Recent.Length} outside time window.";
             RefreshIntel(); UpdateWatchState();
-            var overview=current.FilesFound==0?"No .txt chat logs found in this folder.":current.EligibleFiles==0?$"{current.FilesFound} files found; none modified in the last 2 days.":$"{current.FilesRead}/{current.EligibleFiles} recent log files readable · {current.BytesRead:N0} new bytes this scan.";
+            var overview=current.FilesFound==0?"No .txt chat logs found in this folder.":current.EligibleFiles==0?$"{current.FilesFound} files found; no selected-channel logs modified in the last 2 days.":$"{current.FilesRead}/{current.EligibleFiles} recent log files readable · {current.BytesRead:N0} new bytes this scan.";
             var errors=current.ReadErrors.Count>0?$"\n{current.ReadErrors.Count} file(s) could not be read; retrying. Check file access.":"";
             Get<TextBlock>("IntelDiagnostics").Text=overview+errors+"\n"+lastReadSummary+
                 "\nLast data read: "+(lastLogRead is {} read?$"{read:HH:mm:ss} UTC":"never")+" · Last report: "+(lastIntelMatch is {} match?$"{match:HH:mm:ss} UTC":"none");
@@ -239,7 +235,7 @@ public partial class MainWindow : Window
     }
     private void AddReport(IntelReport report)
     {
-        if(reports.Any(r=>r.Time==report.Time && r.Speaker==report.Speaker && r.Message==report.Message && r.Source==report.Source)) return;
+        if(reports.Any(r=>IntelChannel.SameReport(r,report))) return;
         reports.Add(report); if(reports.Count>5000) reports.RemoveRange(0,reports.Count-5000);
     }
     private void RefreshIntel()

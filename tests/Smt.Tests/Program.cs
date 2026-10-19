@@ -159,9 +159,9 @@ Check(AlertEngine.Evaluate(universe,[nearby],opts with{Coverage="Constellation",
 Check(AlertEngine.Evaluate(universe,[nearby with{Message=other+" clear?"}],opts,clock,true,false,true).Level=="Green","Questions do not create threats");
 Check(AlertEngine.Evaluate(universe,[report,report with{Time=clock.AddSeconds(1),Message="clear",Clear=true}],opts,clock.AddSeconds(2),true,false,true).Level=="Green","Later clear removes threat");
 Check(AlertEngine.Evaluate(universe,[report,report with{Time=clock.AddSeconds(1),Message="clear?",Clear=true}],opts,clock.AddSeconds(2),true,false,true).Level=="Red","A question cannot clear an existing threat");
-var tracker=new LocalTracker();var row=new LocalRow("PlayerX",.95,"Unknown");tracker.Observe([row]);Check(!tracker.Healthy&&!tracker.Threat,"First OCR observation needs confirmation");tracker.Observe([row]);Check(tracker.Healthy&&tracker.Threat,"Repeated unknown row alerts conservatively");tracker.Reset();Check(!tracker.Healthy&&!tracker.Threat,"Reset invalidates old capture");
+var tracker=new LocalTracker();var row=new LocalRow("PlayerX",.95,"Unknown");tracker.Observe([row]);Check(!tracker.Healthy&&!tracker.Threat,"First OCR observation needs confirmation");tracker.Observe([row]);Check(!tracker.Healthy&&!tracker.Threat,"Unknown badge stays uncertain, never red");tracker.Reset();Check(!tracker.Healthy&&!tracker.Threat,"Reset invalidates old capture");
 tracker.Reset();tracker.Observe([new("P1ayerX",.55,"Hostile")]);tracker.Observe([new("PlayerX",.6,"Hostile")]);
-Check(tracker.Threat&&!tracker.Healthy,"Changing OCR spelling at moderate confidence still raises red, never green");
+Check(!tracker.Threat&&!tracker.Healthy,"Low-confidence changing rows cannot trigger red or green");
 Check(AlertEngine.Evaluate(universe,[],new AlertOptions(),clock,false,true,false).Level=="Red","Local red works without location or intel logs");
 var normal=CaptureArea.Normalize(80,45,240,135,800,450);var zoomed=CaptureArea.Normalize(160,90,480,270,1600,900);
 Check(normal.SequenceEqual(zoomed),"Zoomed selections preserve window-relative capture coordinates");
@@ -175,6 +175,30 @@ tracker.Observe([self,new("Neutral",.99,"Hostile")]);tracker.Observe([self,new("
 Check(tracker.Threat,"Neutral arrival alerts even with ignored self row");
 tracker.Reset();tracker.Observe([]);tracker.Observe([]);
 Check(!tracker.Threat&&!tracker.Healthy,"Entirely unreadable empty capture cannot imply all clear or red");
+tracker.Reset();tracker.Observe([new("Pilot One",.99,"Hostile")]);tracker.Observe([new("Pilot Two",.99,"Hostile")]);
+Check(!tracker.Threat,"Different hostile rows on successive scans cannot confirm each other");
+tracker.Observe([new("Pilot Two",.99,"Hostile")]);Check(tracker.Threat&&tracker.ThreatRows.Single().Name=="Pilot Two","Same hostile pilot confirmed with trigger details");
+var home=universe.Systems["RF-CN3"];
+var within=new HashSet<string>{home.Name};var frontier=new HashSet<string>{home.Name};
+for(var i=0;i<3;i++){frontier=frontier.SelectMany(n=>universe.Systems[n].Jumps).Where(n=>!within.Contains(n)).ToHashSet();within.UnionWith(frontier);}
+var across=universe.Systems.Values.First(s=>within.Contains(s.Name)&&s.Constellation!=home.Constellation);
+var constellationOnly=universe.Systems["Ned"];
+Check(universe.Route("Hophib","Ned").Count-1>3 && universe.Systems["Hophib"].Constellation==constellationOnly.Constellation,"Constellation-only fixture lies beyond three jumps");
+var outside=universe.Systems.Values.First(s=>s.Constellation!=home.Constellation&&!within.Contains(s.Name));
+IntelReport At(string name)=>report with{Message=name+" hostiles",Systems=[name]};
+var both=AlertEngine.Panels(universe,[At(across.Name)],home.Name,5,clock,true,false,true);
+Check(both.Local.Level=="Green"&&both.Nearby?.Level=="Yellow","Green Local and yellow nearby coexist across constellation boundary within three jumps");
+Check(AlertEngine.Panels(universe,[At(constellationOnly.Name)],"Hophib",5,clock,true,false,true).Nearby?.Level=="Yellow","Whole constellation included even beyond three jumps");
+Check(AlertEngine.Panels(universe,[At(outside.Name)],home.Name,5,clock,true,false,true).Nearby==null,"Outside union does not show yellow");
+Check(AlertEngine.Panels(universe,[At(across.Name)],home.Name,5,clock.AddMinutes(6),true,false,true).Nearby==null,"Yellow disappears when report expires");
+Check(AlertEngine.Panels(universe,[At(across.Name),At(across.Name) with{Clear=true,Message="clear",Time=clock.AddSeconds(1)}],home.Name,5,clock.AddSeconds(2),true,false,true).Nearby==null,"Yellow disappears after a clear report");
+var redAndYellow=AlertEngine.Panels(universe,[At(across.Name),At(home.Name)],home.Name,5,clock,true,false,true);
+Check(redAndYellow.Local.Level=="Red"&&redAndYellow.Nearby?.Level=="Yellow"&&redAndYellow.Overall.Level=="Red","Red has notification priority while nearby remains visible");
+Check(AlertEngine.Panels(universe,[At(across.Name)],"invalid",5,clock,true,false,true).Nearby==null,"Invalid current system cannot retain old coverage");
+Check(IntelChannel.Name("Intel_WOMP_20261019_123456_123456789")=="Intel_WOMP","Channel extraction preserves underscores and strips session suffix");
+Check(!IntelChannel.Selected("Corp_20261019_123456",["Intel.WOMP"]),"Corp excluded by default selection");
+Check(IntelChannel.SameReport(report with{Source="Intel.WOMP_20261019_123456_111"},report with{Source="Intel.WOMP_20261019_123456_222"}),"Same report duplicated across character logs deduplicates");
+Check(!IntelChannel.SameReport(report with{Source="Intel.WOMP_20261019_123456"},report with{Source="Corp_20261019_123456"}),"Distinct channels retain independent reports");
 Console.WriteLine($"{passed} checks passed.");
 
 sealed class FakeEsi(string json):HttpMessageHandler

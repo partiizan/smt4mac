@@ -20,12 +20,12 @@ public sealed class LogTailer
     public long BytesRead { get; private set; }
     public List<string> ReadErrors { get; } = [];
     public LogTailer(string folder) => Folder = folder;
-    public IReadOnlyList<(string Source, string Line)> Poll()
+    public IReadOnlyList<(string Source, string Line)> Poll(Func<string,bool>? include=null)
     {
         ReadErrors.Clear(); FilesFound=EligibleFiles=FilesRead=0; BytesRead=0;
         var result = new List<(string, string)>();
         var allPaths=Directory.EnumerateFiles(Folder, "*.txt").ToArray();FilesFound=allPaths.Length;
-        var paths = allPaths.Where(p => File.GetLastWriteTimeUtc(p) > DateTime.UtcNow.AddDays(-2)).ToHashSet();
+        var paths = allPaths.Where(p => (include==null || include(Path.GetFileNameWithoutExtension(p))) && File.GetLastWriteTimeUtc(p) > DateTime.UtcNow.AddDays(-2)).ToHashSet();
         EligibleFiles=paths.Count;
         foreach (var stale in cursors.Keys.Where(p => !paths.Contains(p)).ToArray()) cursors.Remove(stale);
         foreach (var path in paths)

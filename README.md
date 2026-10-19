@@ -1,10 +1,18 @@
-# SMT4Mac v0.11.1
+# SMT4Mac v0.12.0
 
-See [v0.11.1 fixes](RELEASE-v0.11.1.md) and [monitoring setup](RELEASE-v0.10.md). Native screen monitoring requires macOS 14+. ESI character login remains deferred.
+See [v0.12.0 changes and monitoring behavior](RELEASE-v0.12.0.md). Native screen monitoring requires macOS 14+. ESI character login remains deferred.
 
 # SMT4Mac — Native macOS client
 
 A native macOS map and intel-monitoring beta. Includes the self-contained `.app`; no Terminal launcher or .NET installation is required.
+
+## New in v0.12
+
+- Permanent map, Intel Stream and Local Monitor columns, with a live crop preview and independent Local/nearby status tags.
+- Automatic constellation **or** three-jump yellow coverage from your current system. Yellow disappears when reports clear or expire.
+- Separate red/yellow voice, sound, popup and message settings; shared voice volume.
+- Intel.WOMP selected by default; explicit channel selection, optional Corp opt-in and duplicate-session suppression.
+- Border rejection and same-pilot confirmation reduce false red alerts from oversized crops. Uncertain recognition warns instead of declaring a hostile.
 
 ## Previous: v0.9
 
@@ -32,7 +40,7 @@ After installing, the app rereads recent history automatically. Your earlier tes
 
 ## Download
 
-[Download v0.11.1 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.11.1/SMT4Mac-0.11.1-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
+[Download v0.12.0 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.12.0/SMT4Mac-0.12.0-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
 
 The ZIP includes the compiled app and corresponding source. The installed app is named **SMT4Mac.app**.
 
@@ -41,7 +49,7 @@ The ZIP includes the compiled app and corresponding source. The installed app is
 1. Quit the previous SMT client.
 2. Unzip the package and move **SMT4Mac.app** into Applications, replacing the earlier beta.
 3. Open the app. This is ad-hoc signed, not Apple-notarized. If macOS blocks it, use System Settings → Privacy & Security → Open Anyway after reviewing the app's origin.
-4. Allow Documents access when requested. Intel automatically scans `~/Documents/EVE/logs/chatlogs` every two seconds. If an old custom folder was saved, click **Use automatic EVE folder**.
+4. Allow Documents access when requested. Intel automatically scans `~/Documents/EVE/logs/chatlogs` every two seconds for selected channels (Intel.WOMP by default). Use **Select intel channels…** in log settings for other channels. If an old custom folder was saved, click **Use automatic EVE folder**.
 
 Existing region, ADM and log settings are retained. Public ADM, wormholes, storms, kills and local logs need no login.
 
@@ -63,7 +71,7 @@ Known links appear automatically as green connectors when both endpoints are on 
 
 ## Layout
 
-Drag the vertical map/intel divider to change panel widths. The wormhole/live-feed drawer has a collapse/expand bar and a draggable top edge when expanded. Width, expanded height and collapsed state persist. Region and ADM selectors remain above the map; routing controls have been removed.
+Drag either vertical divider to resize the map, Intel Stream and Local Monitor columns. The wormhole/live-feed drawer has a collapse/expand bar and a draggable top edge when expanded. Width, expanded height and collapsed state persist. Region and ADM selectors remain above the map; routing controls have been removed.
 
 ## Refresh and freshness
 

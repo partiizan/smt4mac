@@ -19,11 +19,11 @@ public sealed class MonitorWindow:Window
     private readonly TextBlock roster=new(){TextWrapping=TextWrapping.Wrap};
     private readonly ComboBox areaMode=new(){ItemsSource=new[]{"Local member list","System name (optional)"},SelectedIndex=0};
     private readonly AutoCompleteBox system=new(){Watermark="Current system (manual fallback)",MinimumPrefixLength=1,FilterMode=AutoCompleteFilterMode.StartsWithOrdinal};
-    private readonly ComboBox coverage=new(){ItemsSource=new[]{"Nearby","System","Constellation","Follow constellation"},SelectedIndex=0};
-    private readonly AutoCompleteBox target=new(){Watermark="Yellow target system / constellation",MinimumPrefixLength=1,FilterMode=AutoCompleteFilterMode.ContainsOrdinal};
-    private readonly NumericUpDown jumps=new(){Minimum=1,Maximum=30,Value=3,FormatString="'Nearby jumps: '0"},minutes=new(){Minimum=1,Maximum=30,Value=5,FormatString="'Intel expiry minutes: '0"};
-    private readonly CheckBox voice=new(){Content="Voice"},siren=new(){Content="Sound"},popup=new(){Content="Popup"};
-    private readonly TextBox message=new(){Watermark="Spoken alert message"};
+    private readonly TextBlock constellation=new(){Name="AutomaticConstellation",TextWrapping=TextWrapping.Wrap};
+    private readonly NumericUpDown minutes=new(){Minimum=1,Maximum=30,Value=5,FormatString="'Intel expiry minutes: '0"};
+    private readonly CheckBox yellowVoice=new(){Name="YellowVoice",Content="Voice"},yellowSound=new(){Name="YellowSound",Content="Sound"},yellowPopup=new(){Name="YellowPopup",Content="Popup"};
+    private readonly CheckBox redVoice=new(){Name="RedVoice",Content="Voice"},redSound=new(){Name="RedSound",Content="Sound"},redPopup=new(){Name="RedPopup",Content="Popup"};
+    private readonly TextBox yellowMessage=new(){Name="YellowMessage",Watermark="Yellow alert message"},redMessage=new(){Name="RedMessage",Watermark="Red alert message"};
     private readonly Slider volume=new(){Minimum=0,Maximum=1,Value=.7};
     private Point? drag;
     private double zoom=1,baseHeight=450;
@@ -35,13 +35,17 @@ public sealed class MonitorWindow:Window
     {
         this.owner=owner;Title="SMT4Mac · Local monitoring & alerts";Width=880;Height=880;MinWidth=850;Background=Brush.Parse("#0E1723");
         system.ItemsSource=universe.Systems.Keys.Order().ToArray();system.Text=prefs.System;
-        coverage.SelectedItem=prefs.Coverage;target.Text=prefs.Target;jumps.Value=prefs.Jumps;minutes.Value=prefs.Minutes;voice.IsChecked=prefs.Voice;siren.IsChecked=prefs.Siren;popup.IsChecked=prefs.Popup;message.Text=prefs.Message;volume.Value=prefs.Volume;
-        void Targets(){target.ItemsSource=(coverage.SelectedItem as string) is "Constellation" or "Follow constellation"?universe.Data.Systems.Select(s=>s.Constellation).Where(s=>s.Length>0).Distinct().Order().ToArray():universe.Systems.Keys.Order().ToArray();}
-        Targets();coverage.SelectionChanged+=(_,_)=>Targets();
+        system.Name="ManualSystem";
+        void Coverage(){var current=universe.Systems.GetValueOrDefault(system.Text?.Trim()??"");constellation.Text=current==null?"Enter a valid system to set nearby coverage.":$"Constellation: {current.Constellation}\nEntire constellation OR within 3 stargate jumps of {current.Name}.";}
+        system.PropertyChanged+=(_,e)=>{if(e.Property==AutoCompleteBox.TextProperty)Coverage();};Coverage();
+        minutes.Value=prefs.Minutes;volume.Value=prefs.Volume;
+        yellowVoice.IsChecked=prefs.YellowAlert.Voice;yellowSound.IsChecked=prefs.YellowAlert.Sound;yellowPopup.IsChecked=prefs.YellowAlert.Popup;yellowMessage.Text=prefs.YellowAlert.Message;
+        redVoice.IsChecked=prefs.RedAlert.Voice;redSound.IsChecked=prefs.RedAlert.Sound;redPopup.IsChecked=prefs.RedAlert.Popup;redMessage.Text=prefs.RedAlert.Message;
+        Closed+=(_,_)=>{(preview.Source as IDisposable)?.Dispose();(live.Source as IDisposable)?.Dispose();};
         var stack=new StackPanel{Spacing=10,Margin=new Thickness(20)};
         Content=new ScrollViewer{Content=stack,HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled};
         stack.Children.Add(new TextBlock{Text="LOCAL SCREEN MONITOR · BETA",FontSize=20,FontWeight=FontWeight.Bold});
-        stack.Children.Add(new TextBlock{Text="Select an EVE window, load its preview, then drag around only the Local member names and standing icons. Exclude chat, headers and counts. Optionally select a separate area containing only your system name. Screenshots stay on this Mac; none are saved or uploaded.",TextWrapping=TextWrapping.Wrap});
+        stack.Children.Add(new TextBlock{Text="Select an EVE window, load its preview, then drag around the Local member names and standing icons. Empty space below the list is allowed. Exclude chat and headers where possible. Optionally select a separate area containing only your system name. Screenshots stay on this Mac; none are saved or uploaded.",TextWrapping=TextWrapping.Wrap});
         stack.Children.Add(windows);
         var buttons=new StackPanel{Orientation=Avalonia.Layout.Orientation.Horizontal,Spacing=8};stack.Children.Add(buttons);
         Button Add(string text,Action action){var b=new Button{Content=text};b.Click+=(_,_)=>action();buttons.Children.Add(b);return b;}
@@ -65,15 +69,24 @@ public sealed class MonitorWindow:Window
             status.Text=(areaMode.SelectedIndex==0?"Local":"System")+" area selected. Press Start monitoring to apply.";
         };
         stack.Children.Add(live);stack.Children.Add(roster);
-        stack.Children.Add(new TextBlock{Text="Nullsec rules: green, blue and purple icons are friendly. Red, grey, orange, yellow and neutral/no-icon rows trigger Red after two consecutive scans. Verify recognition against your EVE settings. Red Local alerts stay latched until you verify in game and restart capture. A pilot no longer visible is not confirmed to have left. Keep the entire Local roster visible where possible.",TextWrapping=TextWrapping.Wrap,Foreground=Brush.Parse("#E8BE76")});
+        stack.Children.Add(new TextBlock{Text="Nullsec rules: green, blue and purple icons are friendly. Visible red, grey, white neutral, orange and yellow badges trigger Red after the same pilot is confirmed on two scans. Unbadged self rows and empty space are ignored; uncertain badges show a warning. Verify recognition against your EVE settings. Red Local alerts stay latched until you verify in game and restart capture. A pilot no longer visible is not confirmed to have left. Keep the entire Local roster visible where possible.",TextWrapping=TextWrapping.Wrap,Foreground=Brush.Parse("#E8BE76")});
         stack.Children.Add(system);
-        stack.Children.Add(new TextBlock{Text="YELLOW COVERAGE",FontWeight=FontWeight.Bold});stack.Children.Add(coverage);stack.Children.Add(target);stack.Children.Add(jumps);stack.Children.Add(minutes);
-        var alerts=new StackPanel{Orientation=Avalonia.Layout.Orientation.Horizontal,Spacing=15};alerts.Children.Add(voice);alerts.Children.Add(siren);alerts.Children.Add(popup);stack.Children.Add(alerts);stack.Children.Add(message);stack.Children.Add(new TextBlock{Text="Voice volume"});stack.Children.Add(volume);
-        var save=new Button{Content="Save alert settings"};save.Click+=(_,_)=>{owner.ConfigureMonitor(Prefs());status.Text="Alert settings saved. No ESI login is used.";};stack.Children.Add(save);
+        stack.Children.Add(new TextBlock{Text="AUTOMATIC YELLOW COVERAGE",FontWeight=FontWeight.Bold});stack.Children.Add(constellation);stack.Children.Add(minutes);
+        void AlertSection(string level,string description,CheckBox voice,CheckBox sound,CheckBox popup,TextBox message)
+        {
+            stack.Children.Add(new TextBlock{Text=level.ToUpperInvariant()+" · "+description,FontWeight=FontWeight.Bold});
+            var options=new StackPanel{Orientation=Avalonia.Layout.Orientation.Horizontal,Spacing=15};options.Children.Add(voice);options.Children.Add(sound);options.Children.Add(popup);stack.Children.Add(options);stack.Children.Add(message);
+            var test=new Button{Content="Test "+level.ToLowerInvariant()+" alert"};test.Click+=async(_,_)=>await owner.TestAlert(level,Prefs());stack.Children.Add(test);
+        }
+        AlertSection("Yellow","Threats nearby",yellowVoice,yellowSound,yellowPopup,yellowMessage);
+        AlertSection("Red","Immediate local threat",redVoice,redSound,redPopup,redMessage);
+        stack.Children.Add(new TextBlock{Text="Voice volume · both alert levels"});stack.Children.Add(volume);
+        var save=new Button{Name="SaveAlerts",Content="Save alert settings"};save.Click+=(_,_)=>{owner.ConfigureMonitor(Prefs());status.Text="Alert settings saved. No ESI login is used.";};stack.Children.Add(save);
         var clear=new Button{Content="Clear system capture area (use manual system)"};clear.Click+=(_,_)=>{systemArea=null;status.Text="System area cleared; press Start monitoring to apply.";};stack.Children.Add(clear);
-        var test=new Button{Content="Test audio"};test.Click+=async(_,_)=>{try{await NativeCapture.Call(new{action="alert",voice=voice.IsChecked==true,siren=siren.IsChecked==true,message=message.Text??"Test alert",volume=volume.Value});}catch(Exception e){ShowError(e.Message);}};stack.Children.Add(test);
     }
-    private MonitorPrefs Prefs()=>new(system.Text?.Trim()??"",coverage.SelectedItem as string??"Nearby",target.Text?.Trim()??"",(int)(jumps.Value??3),(int)(minutes.Value??5),voice.IsChecked==true,siren.IsChecked==true,popup.IsChecked==true,message.Text??"Threat detected",volume.Value);
+    private MonitorPrefs Prefs()=>new(System:system.Text?.Trim()??"",Coverage:"Automatic",Jumps:3,Minutes:(int)(minutes.Value??5),Volume:volume.Value,
+        Yellow:new(yellowVoice.IsChecked==true,yellowSound.IsChecked==true,yellowPopup.IsChecked==true,yellowMessage.Text??""),
+        Red:new(redVoice.IsChecked==true,redSound.IsChecked==true,redPopup.IsChecked==true,redMessage.Text??""));
     private void Draw(Point a,Point b){Canvas.SetLeft(selection,Math.Clamp(Math.Min(a.X,b.X),0,overlay.Width));Canvas.SetTop(selection,Math.Clamp(Math.Min(a.Y,b.Y),0,overlay.Height));selection.Width=Math.Min(overlay.Width,Math.Abs(a.X-b.X));selection.Height=Math.Min(overlay.Height,Math.Abs(a.Y-b.Y));}
     private void SetZoom(double value,Point? anchor=null)
     {

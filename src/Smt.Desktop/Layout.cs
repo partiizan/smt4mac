@@ -9,7 +9,8 @@ public partial class MainWindow
         var divider=Get<Border>("WormholeDivider");
         var toggle=Get<Button>("ToggleWormholes");
         double height=double.IsFinite(settings.WormholeHeight)?Math.Clamp(settings.WormholeHeight,280,600):330;
-        grid.ColumnDefinitions[2].Width=new GridLength(double.IsFinite(settings.IntelWidth)?Math.Clamp(settings.IntelWidth,280,600):340);
+        grid.ColumnDefinitions[2].Width=new GridLength(double.IsFinite(settings.IntelWidth)?Math.Clamp(settings.IntelWidth,240,480):300);
+        grid.ColumnDefinitions[4].Width=new GridLength(double.IsFinite(settings.MonitorWidth)?Math.Clamp(settings.MonitorWidth,260,480):300);
         void Apply()
         {
             bool collapsed=settings.WormholesCollapsed;
@@ -29,11 +30,19 @@ public partial class MainWindow
         };
         divider.PointerReleased+=(_,e)=>{if(dragY==null)return;dragY=null;e.Pointer.Capture(null);settings=settings with{WormholeHeight=height};Save();};
         divider.PointerCaptureLost+=(_,_)=>dragY=null;
-        Get<GridSplitter>("IntelDivider").PointerReleased+=(_,_)=>{settings=settings with{IntelWidth=Get<Border>("IntelPanel").Bounds.Width};Save();};
-        Closing+=(_,_)=>{settings=settings with{IntelWidth=Get<Border>("IntelPanel").Bounds.Width,WormholeHeight=height};Save();};
+        Get<GridSplitter>("IntelDivider").PointerReleased+=(_,_)=>{settings=settings with{IntelWidth=Get<Border>("IntelPanel").Bounds.Width,MonitorWidth=Get<Border>("MonitorPanel").Bounds.Width};Save();};
+        Get<GridSplitter>("MonitorDivider").PointerReleased+=(_,_)=>{settings=settings with{IntelWidth=Get<Border>("IntelPanel").Bounds.Width,MonitorWidth=Get<Border>("MonitorPanel").Bounds.Width};Save();};
+        Closing+=(_,_)=>{settings=settings with{IntelWidth=Get<Border>("IntelPanel").Bounds.Width,MonitorWidth=Get<Border>("MonitorPanel").Bounds.Width,WormholeHeight=height};Save();};
         grid.SizeChanged+=(_,_)=>
         {
             if(grid.Bounds.Height<=0)return;
+            var budget=grid.Bounds.Width-496;
+            var intel=Get<Border>("IntelPanel").Bounds.Width;var monitor=Get<Border>("MonitorPanel").Bounds.Width;
+            if(budget>=500 && intel+monitor>budget+1)
+            {
+                var intelWidth=Math.Clamp(budget*intel/(intel+monitor),240,budget-260);
+                grid.ColumnDefinitions[2].Width=new GridLength(intelWidth);grid.ColumnDefinitions[4].Width=new GridLength(budget-intelWidth);
+            }
             height=Math.Clamp(height,280,Math.Max(280,grid.Bounds.Height-446));Apply();
         };
         Apply();
