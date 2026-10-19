@@ -16,17 +16,30 @@ private func finish(_ value: [String:Any]) {
     guard let s = result else {return nil}; result=nil; return strdup(s)
 }
 @_cdecl("smt_free") public func smtFree(_ p: UnsafeMutableRawPointer?) {free(p)}
-private func recognize(_ img: CGImage) throws -> [[String:Any]] {
-    let request=VNRecognizeTextRequest();request.recognitionLevel = .accurate;request.usesLanguageCorrection=false;request.minimumTextHeight=0.005;request.recognitionLanguages=["en-US"]
-    try VNImageRequestHandler(cgImage:img,options:[:]).perform([request])
+private struct TextFragment {
+    let text: String
+    let confidence: Float
+    let box: CGRect
+}
+private func rosterLines(_ fragments: [TextFragment]) -> [[TextFragment]] {
+    var lines: [[TextFragment]]=[]
+    for fragment in fragments.sorted(by:{$0.box.midY > $1.box.midY}) {
+        // Use vertical alignment, never spaces or the OCR observation count, as the row boundary.
+        if let index=lines.firstIndex(where:{ line in
+            let anchor=line[0].box
+            return abs(anchor.midY-fragment.box.midY) <= min(anchor.height,fragment.box.height)*0.45
+        }) {lines[index].append(fragment)} else {lines.append([fragment])}
+    }
+    return lines.map{$0.sorted(by:{$0.box.minX < $1.box.minX})}
+}
+private func classify(_ img: CGImage, _ fragments: [TextFragment]) -> [[String:Any]] {
     let bitmap=NSBitmapImageRep(cgImage:img)
-    let rows=(request.results ?? []).compactMap {observation -> [String:Any]? in
-        guard let candidate=observation.topCandidates(1).first else{return nil}
-        // Locate the name separately from OCR-recognized standing glyphs such as '=' or '+'.
-        let firstLetter=candidate.string.firstIndex(where:{$0.isLetter || $0.isNumber})
-        guard let start=firstLetter else {return nil}
-        let name=String(candidate.string[start...])
-        let box=(try? candidate.boundingBox(for:start..<candidate.string.endIndex))?.boundingBox ?? observation.boundingBox
+    return rosterLines(fragments).compactMap {line -> [String:Any]? in
+        guard let first=line.first else {return nil}
+        let name=line.map{$0.text}.joined(separator:" ")
+        // Only the leftmost fragment defines the badge position. Later words and numeric
+        // suffixes must never sample the white letters of the preceding word as a neutral icon.
+        let box=first.box
         // Inspect the icon area left of a name. Reject a broad blue selection background as ambiguous.
         let nameX=Int(box.minX*Double(img.width))
         let rowHeight=max(8,Int(box.height*Double(img.height)))
@@ -50,9 +63,19 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
         if friendly>=4 && other<4 && Double(friendly)/Double(samples)<0.75 {style="Friendly"}
         else if friendly+other+neutral>=4 {style="Hostile"}
         else {style="Ignored"} // Empty badge slot: current player; blank space produces no OCR row.
-        return ["name":name,"confidence":candidate.confidence,"standing":style,"badgeDebug":[left,right,top,bottom,friendly,other,neutral],"ocrBox":[box.minX,box.minY,box.width,box.height]]
+        return ["name":name,"confidence":line.map{$0.confidence}.min() ?? 0,"standing":style,"badgeDebug":[left,right,top,bottom,friendly,other,neutral],"ocrBox":[box.minX,box.minY,box.width,box.height]]
     }
-    return rows
+}
+private func recognize(_ img: CGImage) throws -> [[String:Any]] {
+    let request=VNRecognizeTextRequest();request.recognitionLevel = .accurate;request.usesLanguageCorrection=false;request.minimumTextHeight=0.005;request.recognitionLanguages=["en-US"]
+    try VNImageRequestHandler(cgImage:img,options:[:]).perform([request])
+    let fragments=(request.results ?? []).compactMap {observation -> TextFragment? in
+        guard let candidate=observation.topCandidates(1).first,
+              let start=candidate.string.firstIndex(where:{$0.isLetter || $0.isNumber}) else {return nil}
+        let box=(try? candidate.boundingBox(for:start..<candidate.string.endIndex))?.boundingBox ?? observation.boundingBox
+        return TextFragment(text:String(candidate.string[start...]),confidence:candidate.confidence,box:box)
+    }
+    return classify(img,fragments)
 }
 @_cdecl("smt_request") public func smtRequest(_ raw: UnsafePointer<CChar>) {
     let text=String(cString:raw)
@@ -81,6 +104,36 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
                     guard let row=rows.first(where:{($0["name"] as? String)?.contains("PlayerX")==true}),row["standing"] as? String == expected else {throw NSError(domain:"SMT",code:6,userInfo:[NSLocalizedDescriptionKey:"Icon test failed: \(name) \(rows)"])}
                     checked[name]=expected
                 }
+                // Deterministically reproduce Vision splitting a spaced pilot name into words.
+                // Include adjacent roster rows, a numeric suffix, an unbadged self, and 600px empty space.
+                let roster=NSImage(size:NSSize(width:500,height:800));roster.lockFocus()
+                NSColor.black.setFill();NSRect(x:0,y:0,width:500,height:800).fill()
+                var fragments:[TextFragment]=[]
+                for (index,words) in [["Gallente","Citizen","93502323"],["Gallente","Citizen","93502324"],["Logi","on","me"]].enumerated() {
+                    let y=CGFloat(750-index*24)
+                    if index<2 {NSColor.green.setFill();NSRect(x:6,y:y+3,width:12,height:14).fill()}
+                    var x:CGFloat=26
+                    for word in words {
+                        let attrs:[NSAttributedString.Key:Any]=[.font:NSFont.systemFont(ofSize:14),.foregroundColor:NSColor.white]
+                        (word as NSString).draw(at:NSPoint(x:x,y:y),withAttributes:attrs)
+                        let width=(word as NSString).size(withAttributes:attrs).width
+                        fragments.append(TextFragment(text:word,confidence:1,box:CGRect(x:x/500,y:(y+3)/800,width:width/500,height:14/800)))
+                        x+=width+8
+                    }
+                }
+                roster.unlockFocus()
+                guard let rosterCG=roster.cgImage(forProposedRect:nil,context:nil,hints:nil) else {throw NSError(domain:"SMT",code:8)}
+                // NSImage uses point coordinates; the fixture boxes are normalized for either backing scale.
+                let merged=classify(rosterCG,fragments)
+                guard merged.count==3,merged[0]["name"] as? String == "Gallente Citizen 93502323",
+                      merged[1]["name"] as? String == "Gallente Citizen 93502324",
+                      merged[0]["standing"] as? String == "Friendly",merged[1]["standing"] as? String == "Friendly",
+                      merged[2]["name"] as? String == "Logi on me",merged[2]["standing"] as? String == "Ignored"
+                else {throw NSError(domain:"SMT",code:9,userInfo:[NSLocalizedDescriptionKey:"Fragmented roster regression: \(merged)"])}
+                let observed=try recognize(rosterCG)
+                guard observed.count==3,observed.filter({$0["standing"] as? String == "Friendly"}).count==2,
+                      observed.filter({$0["standing"] as? String == "Ignored"}).count==1
+                else {throw NSError(domain:"SMT",code:10,userInfo:[NSLocalizedDescriptionKey:"Vision spaced roster regression: \(observed)"])}
                 // A tall Local roster with small names must not be discarded by Vision's relative-height filter.
                 let tall=NSImage(size:NSSize(width:500,height:1800));tall.lockFocus()
                 NSColor.black.setFill();NSRect(x:0,y:0,width:500,height:1800).fill()

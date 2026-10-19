@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><OutputType>WinExe</OutputType><AssemblyName>SMT4Mac</AssemblyName><Version>0.11.0</Version></PropertyGroup>
+  <PropertyGroup><OutputType>WinExe</OutputType><AssemblyName>SMT4Mac</AssemblyName><Version>0.11.1</Version></PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Smt.Core/Smt.Core.csproj" />
     <PackageReference Include="Avalonia.Desktop" Version="11.3.8" />
