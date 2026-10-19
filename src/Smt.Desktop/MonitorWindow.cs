@@ -34,6 +34,12 @@ public sealed class MonitorWindow:Window
     public MonitorWindow(MainWindow owner,Universe universe,MonitorPrefs prefs)
     {
         this.owner=owner;Title="SMT4Mac · Local monitoring & alerts";Width=880;Height=880;MinWidth=850;Background=Brush.Parse("#0E1723");
+        if(owner.CaptureSelection is {} previous)
+        {
+            var selected=new CaptureWindow(previous.Id,"Previously selected EVE window");windows.ItemsSource=new[]{selected};windows.SelectedItem=selected;
+            previewId=previous.Id;localArea=previous.Area;systemArea=previous.System;
+            status.Text="Previous window and crop retained. Start monitoring to resume, or load a preview to adjust.";
+        }
         system.ItemsSource=universe.Systems.Keys.Order().ToArray();system.Text=prefs.System;
         system.Name="ManualSystem";
         void Coverage(){var current=universe.Systems.GetValueOrDefault(system.Text?.Trim()??"");constellation.Text=current==null?"Enter a valid system to set nearby coverage.":$"Constellation: {current.Constellation}\nEntire constellation OR within 3 stargate jumps of {current.Name}.";}
@@ -45,7 +51,7 @@ public sealed class MonitorWindow:Window
         var stack=new StackPanel{Spacing=10,Margin=new Thickness(20)};
         Content=new ScrollViewer{Content=stack,HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled};
         stack.Children.Add(new TextBlock{Text="LOCAL SCREEN MONITOR · BETA",FontSize=20,FontWeight=FontWeight.Bold});
-        stack.Children.Add(new TextBlock{Text="Select an EVE window, load its preview, then drag around the Local member names and standing icons. Empty space below the list is allowed. Exclude chat and headers where possible. Optionally select a separate area containing only your system name. Screenshots stay on this Mac; none are saved or uploaded.",TextWrapping=TextWrapping.Wrap});
+        stack.Children.Add(new TextBlock{Text="Select an EVE window, load its preview, then drag around the Local member names and standing icons. Empty space below the list is allowed. The numeric member-count header is excluded automatically. Exclude chat text. Optionally select a separate area containing only your system name. Screenshots stay on this Mac; none are saved or uploaded.",TextWrapping=TextWrapping.Wrap});
         stack.Children.Add(windows);
         var buttons=new StackPanel{Orientation=Avalonia.Layout.Orientation.Horizontal,Spacing=8};stack.Children.Add(buttons);
         Button Add(string text,Action action){var b=new Button{Content=text};b.Click+=(_,_)=>action();buttons.Children.Add(b);return b;}
@@ -69,7 +75,7 @@ public sealed class MonitorWindow:Window
             status.Text=(areaMode.SelectedIndex==0?"Local":"System")+" area selected. Press Start monitoring to apply.";
         };
         stack.Children.Add(live);stack.Children.Add(roster);
-        stack.Children.Add(new TextBlock{Text="Nullsec rules: green, blue and purple icons are friendly. Visible red, grey, white neutral, orange and yellow badges trigger Red after the same pilot is confirmed on two scans. Unbadged self rows and empty space are ignored; uncertain badges show a warning. Verify recognition against your EVE settings. Red Local alerts stay latched until you verify in game and restart capture. A pilot no longer visible is not confirmed to have left. Keep the entire Local roster visible where possible.",TextWrapping=TextWrapping.Wrap,Foreground=Brush.Parse("#E8BE76")});
+        stack.Children.Add(new TextBlock{Text="Nullsec rules: green, blue and purple icons are friendly. Visible red, grey, white neutral, orange and yellow badges trigger Red after the same pilot is confirmed on two scans. Unbadged self rows and empty space are ignored; uncertain badges show a warning. Verify recognition against your EVE settings. Local automatically clears on a healthy scan with only friendly or unbadged rows. Keep the Local window and crop fixed; off-screen pilots cannot be detected.",TextWrapping=TextWrapping.Wrap,Foreground=Brush.Parse("#E8BE76")});
         stack.Children.Add(system);
         stack.Children.Add(new TextBlock{Text="AUTOMATIC YELLOW COVERAGE",FontWeight=FontWeight.Bold});stack.Children.Add(constellation);stack.Children.Add(minutes);
         void AlertSection(string level,string description,CheckBox voice,CheckBox sound,CheckBox popup,TextBox message)
@@ -105,7 +111,7 @@ public sealed class MonitorWindow:Window
     private async Task Preview()
     {
         if(windows.SelectedItem is not CaptureWindow w){ShowError("Choose an EVE window first.");return;}
-        try{var d=await NativeCapture.Call(new{action="capture",id=w.Id,preview=true,scan=false});SetImage(preview,d);baseHeight=800.0*d.GetProperty("height").GetInt32()/d.GetProperty("width").GetInt32();SetZoom(1);previewId=w.Id;localArea=null;systemArea=null;selection.Width=0;selection.Height=0;status.Text="Drag around Local names plus standing icons.";}catch(Exception e){ShowError(e.Message);}
+        try{var d=await NativeCapture.Call(new{action="capture",id=w.Id,preview=true,scan=false});SetImage(preview,d);baseHeight=800.0*d.GetProperty("height").GetInt32()/d.GetProperty("width").GetInt32();SetZoom(1);if(previewId!=w.Id){localArea=null;systemArea=null;}previewId=w.Id;DrawArea();status.Text="Drag around Local names plus standing icons.";}catch(Exception e){ShowError(e.Message);}
     }
     private void Start(){if(windows.SelectedItem is not CaptureWindow w||w.Id!=previewId||localArea==null){ShowError("Load this window's preview and select a Local area first.");return;}owner.ConfigureMonitor(Prefs());owner.StartMonitor(w.Id,localArea,systemArea);status.Text="Monitoring selected window. Leave Local visible and reselect the area if its layout changes.";}
     private static void SetImage(Image image,JsonElement d){if(d.TryGetProperty("png",out var png)){using var stream=new MemoryStream(Convert.FromBase64String(png.GetString()!));var old=image.Source as IDisposable;image.Source=new Bitmap(stream);old?.Dispose();}}

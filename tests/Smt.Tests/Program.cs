@@ -189,16 +189,33 @@ IntelReport At(string name)=>report with{Message=name+" hostiles",Systems=[name]
 var both=AlertEngine.Panels(universe,[At(across.Name)],home.Name,5,clock,true,false,true);
 Check(both.Local.Level=="Green"&&both.Nearby?.Level=="Yellow","Green Local and yellow nearby coexist across constellation boundary within three jumps");
 Check(AlertEngine.Panels(universe,[At(constellationOnly.Name)],"Hophib",5,clock,true,false,true).Nearby?.Level=="Yellow","Whole constellation included even beyond three jumps");
-Check(AlertEngine.Panels(universe,[At(outside.Name)],home.Name,5,clock,true,false,true).Nearby==null,"Outside union does not show yellow");
-Check(AlertEngine.Panels(universe,[At(across.Name)],home.Name,5,clock.AddMinutes(6),true,false,true).Nearby==null,"Yellow disappears when report expires");
-Check(AlertEngine.Panels(universe,[At(across.Name),At(across.Name) with{Clear=true,Message="clear",Time=clock.AddSeconds(1)}],home.Name,5,clock.AddSeconds(2),true,false,true).Nearby==null,"Yellow disappears after a clear report");
-var redAndYellow=AlertEngine.Panels(universe,[At(across.Name),At(home.Name)],home.Name,5,clock,true,false,true);
+Check(AlertEngine.Panels(universe,[At(outside.Name)],home.Name,5,clock,true,false,true).Nearby?.Level=="Clear","Outside union does not show yellow");
+Check(AlertEngine.Panels(universe,[At(across.Name)],home.Name,5,clock.AddMinutes(6),true,false,true).Nearby?.Level=="Clear","Yellow disappears when report expires");
+Check(AlertEngine.Panels(universe,[At(across.Name),At(across.Name) with{Clear=true,Message="clear",Time=clock.AddSeconds(1)}],home.Name,5,clock.AddSeconds(2),true,false,true).Nearby?.Level=="Clear","Yellow disappears after a clear report");
+var redAndYellow=AlertEngine.Panels(universe,[At(across.Name),At(home.Name)],home.Name,5,clock,true,true,true);
 Check(redAndYellow.Local.Level=="Red"&&redAndYellow.Nearby?.Level=="Yellow"&&redAndYellow.Overall.Level=="Red","Red has notification priority while nearby remains visible");
-Check(AlertEngine.Panels(universe,[At(across.Name)],"invalid",5,clock,true,false,true).Nearby==null,"Invalid current system cannot retain old coverage");
+Check(AlertEngine.Panels(universe,[At(across.Name)],"invalid",5,clock,true,false,true).Nearby?.Level=="Gray","Invalid current system cannot retain old coverage");
 Check(IntelChannel.Name("Intel_WOMP_20261019_123456_123456789")=="Intel_WOMP","Channel extraction preserves underscores and strips session suffix");
 Check(!IntelChannel.Selected("Corp_20261019_123456",["Intel.WOMP"]),"Corp excluded by default selection");
 Check(IntelChannel.SameReport(report with{Source="Intel.WOMP_20261019_123456_111"},report with{Source="Intel.WOMP_20261019_123456_222"}),"Same report duplicated across character logs deduplicates");
 Check(!IntelChannel.SameReport(report with{Source="Intel.WOMP_20261019_123456"},report with{Source="Corp_20261019_123456"}),"Distinct channels retain independent reports");
+Check(AlertEngine.Panels(universe,[At(home.Name)],home.Name,5,clock,true,false,true).Local.Level=="Green","Current-system intel cannot latch the independent screen-based Local monitor");
+Check(AlertEngine.IsThreat(At("P-ZMZV") with{Message="P-ZMZV Doov nv"}),"System/pilot shorthand is a qualifying intel sighting");
+Check(AlertEngine.IsThreat(At("P-ZMZV") with{Message="P-ZMZV Cynoseidon"}),"Pilot-only sighting requires no hostile keyword");
+Check(!AlertEngine.IsThreat(At("P-ZMZV") with{Message="P-ZMZV clear?"}),"Intel questions do not alert");
+Check(!AlertEngine.IsThreat(At("P-ZMZV") with{Message="P-ZMZV test"}),"Explicit test messages do not alert");
+tracker.Reset();tracker.Observe([friend,self]);Check(tracker.Healthy&&!tracker.Threat,"Healthy friendly scan recovers immediately after restart");
+tracker.Observe([friend,new("Doov",.99,"Hostile")]);tracker.Observe([friend,new("Doov",.99,"Hostile")]);Check(tracker.Threat,"Confirmed arrival triggers red");
+tracker.Observe([friend,self]);Check(tracker.Healthy&&!tracker.Threat,"First valid friendly scan automatically clears departed hostile");
+tracker.Observe([friend with{Name="Blue PiIot"},self]);Check(tracker.Healthy&&!tracker.Threat,"Friendly name OCR variation cannot wedge healthy monitoring");
+tracker.Observe([friend with{Standing="Unknown"}]);Check(!tracker.Healthy&&!tracker.Threat,"Unreadable standing is unavailable rather than retained red or false green");
+var notifications=new AlertNotifications();
+Check(notifications.Observe(redAndYellow,clock).SequenceEqual(new[]{"Red","Yellow"}),"Red and yellow notify independently in the same scan");
+Check(notifications.Observe(redAndYellow,clock.AddSeconds(1)).Length==0,"Unchanged threats do not repeat notifications each scan");
+var more=redAndYellow with{Nearby=redAndYellow.Nearby! with{Detail="another pilot at another nearby system"}};
+Check(notifications.Observe(more,clock.AddSeconds(16)).SequenceEqual(new[]{"Yellow"}),"New nearby report alerts while Local stays red");
+notifications.Observe(more with{Local=new("Green","ALL CLEAR","")},clock.AddSeconds(17));
+Check(notifications.Observe(more,clock.AddSeconds(18)).Contains("Red"),"A new Local arrival alerts again after automatic clearing");
 Console.WriteLine($"{passed} checks passed.");
 
 sealed class FakeEsi(string json):HttpMessageHandler

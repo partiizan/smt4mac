@@ -1,5 +1,5 @@
 # Deferred work
 
-The approved permanent Local Monitor / Intel Stream layout, forgiving crop handling, selected intel channels, automatic constellation plus three-jump yellow coverage, and separate red/yellow alert preferences are implemented in v0.12.0.
+Automatic Local clearing, independent permanent Local/Extended Area bars and alerts, restart recovery, pilot-sighting intel classification and member-count header exclusion are implemented in v0.13.0.
 
-Rust migration remains a post-beta goal. Character ESI/SSO remains deferred.
+Rust migration remains post-beta. Character ESI/SSO remains deferred.

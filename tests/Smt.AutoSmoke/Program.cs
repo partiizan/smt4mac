@@ -75,7 +75,7 @@ try
  Console.WriteLine("PASS: Three permanent columns resize; wormhole collapse, restore and resize work");
  Directory.CreateDirectory("screenshots");
  await Task.Delay(300);
- using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v012-intel.png");
+ using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v013-intel.png");
  if(!window.FindControl<TextBlock>("IntelDiagnostics")!.Text!.Contains("Last report:"))throw new Exception("Missing intel diagnostics");
  if(!window.FindControl<TextBlock>("IntelState")!.Text!.Contains("~/Documents/EVE/logs/"))throw new Exception("Default path is not displayed relative to current user");
  Console.WriteLine("PASS: Intel diagnostics and current-user default path visible");
@@ -83,7 +83,7 @@ try
  admPicker.SelectedIndex=1;if(window.FindControl<StarMap>("Map")!.AdmThreshold!=5)throw new Exception("ADM <5 selection failed");
  admPicker.SelectedIndex=2;if(window.FindControl<StarMap>("Map")!.AdmThreshold!=4 || SettingsStore.Load().AdmThreshold!=4)throw new Exception("ADM <4 persistence failed");
  Console.WriteLine("PASS: ADM threshold controls update map and persist preference");
- await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v012-intel.png");
+ await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v013-intel.png");
  if(window.FindControl<Control>("OperationsTabs")!=null || window.FindControl<Control>("ActivityLayer")!=null || !window.FindControl<Border>("IntelPanel")!.IsVisible || !window.FindControl<Border>("LivePanel")!.IsVisible)throw new Exception("Persistent panel layout failed");
  Console.WriteLine("PASS: Intel and Live both visible; activity controls absent");
  var regionPicker=window.FindControl<ComboBox>("RegionPicker")!;
@@ -123,7 +123,7 @@ try
  if(window.FindControl<TextBlock>("RegionTitle")!.Text!="Delve" || SettingsStore.Load().Region!="Delve")
      throw new Exception("Region selection did not survive refresh");
  Console.WriteLine("PASS: Period Basis, Delve, Querious switches survive live/intel refresh; explicit activation still works");
- await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v012-intel.png");
+ await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v013-intel.png");
  // Deterministic Eve-Scout fixtures verify filtering and row actions independently of live feed contents.
  var live=(Situational)typeof(MainWindow).GetField("situation",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(window)!;
  var retained=live.Wormholes.ToArray();live.Wormholes.Clear();
@@ -146,14 +146,14 @@ try
  search.Text="";await Task.Delay(150);
  if(connections.ItemCount!=2)throw new Exception("Expired connection remains visible");
  Console.WriteLine("PASS: Wormhole region/hub filters, empty state, expired removal, signature orientation and map action");
- await Task.Delay(200);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v012-fixtures.png");
+ await Task.Delay(200);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v013-fixtures.png");
  window.Width=1280;window.Height=850;await Task.Delay(300);
  if(window.FindControl<Border>("LivePanel")!.Bounds.Height<280 || window.FindControl<ListBox>("IntelList")!.Bounds.Height<30 || connections.Bounds.Height<50)throw new Exception($"Minimum-size panels unusable: live={window.FindControl<Border>("LivePanel")!.Bounds.Height}, intel={window.FindControl<ListBox>("IntelList")!.Bounds.Height}, connections={connections.Bounds.Height}");
- using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v012-small.png");
+ using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v013-small.png");
  Console.WriteLine("PASS: Intel stream and connection table remain usable at 1280 x 850");
  window.Width=1560;window.Height=1000;
  live.Wormholes.Clear();live.Wormholes.AddRange(retained);search.Text=" ";
- await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v012-live.png");
+ await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v013-live.png");
  window.FindControl<Button>("MonitorSetup")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
  await Task.Delay(300);
  var monitor=(MonitorWindow)typeof(MainWindow).GetField("monitorWindow",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(window)!;
@@ -163,7 +163,7 @@ try
  if(monitor.GetVisualDescendants().OfType<Avalonia.Controls.Canvas>().Single().Width!=1000)throw new Exception("Preview zoom did not resize selection surface");
  monitor.GetVisualDescendants().OfType<Button>().Single(b=>b.Name=="CaptureFit").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
  Console.WriteLine("PASS: Preview zoom and fit controls resize the capture selection surface");
- using(var frame=monitor.CaptureRenderedFrame())frame?.Save("screenshots/v012-monitor-setup.png");
+ using(var frame=monitor.CaptureRenderedFrame())frame?.Save("screenshots/v013-monitor-setup.png");
  var manual=monitor.GetVisualDescendants().OfType<AutoCompleteBox>().Single(b=>b.Name=="ManualSystem");
  var coverageText=monitor.GetVisualDescendants().OfType<TextBlock>().Single(b=>b.Name=="AutomaticConstellation");
  manual.Text="RF-CN3";await Task.Delay(100);
@@ -191,19 +191,50 @@ try
  using var bitmap=new Avalonia.Media.Imaging.RenderTargetBitmap(new PixelSize(260,160));bitmap.Render(rosterFixture);using var png=new MemoryStream();bitmap.Save(png);
  var capture=System.Text.Json.JsonSerializer.SerializeToElement(new{png=Convert.ToBase64String(png.ToArray()),rows=new[]{new{name="Friendly Pilot",confidence=.99,standing="Friendly"},new{name="Blue Wingman",confidence=.99,standing="Friendly"},new{name="Chong Dong",confidence=.99,standing="Ignored"}}});
  window.ApplyLocalCapture(capture);window.ApplyLocalCapture(capture);
- if(window.FindControl<Image>("LocalPreview")!.Source==null||window.FindControl<TextBlock>("AlertTitle")!.Text!="LOCAL CLEAR")throw new Exception("Permanent preview or green status failed with settings closed");
+ if(window.FindControl<Image>("LocalPreview")!.Source==null||window.FindControl<TextBlock>("AlertTitle")!.Text!="ALL CLEAR")throw new Exception("Permanent preview or green status failed with settings closed");
  var feed=(List<IntelReport>)typeof(MainWindow).GetField("reports",binding)!.GetValue(window)!;
  var u=new Universe(Path.Combine(AppContext.BaseDirectory,"data","universe.json"));var adjacent=u.Systems["RF-CN3"].Jumps[0];
  feed.Add(new IntelReport(DateTimeOffset.UtcNow,"Fixture Scout",adjacent+" hostiles",[adjacent],false,"Intel.WOMP"));
  typeof(MainWindow).GetMethod("UpdateAlert",binding)!.Invoke(window,null);
- if(!window.FindControl<Border>("NearbyTag")!.IsVisible||window.FindControl<TextBlock>("AlertTitle")!.Text!="LOCAL CLEAR")throw new Exception("Green and yellow must coexist");
+ if(!window.FindControl<Border>("NearbyTag")!.IsVisible||window.FindControl<TextBlock>("AlertTitle")!.Text!="ALL CLEAR")throw new Exception("Green and yellow must coexist");
  window.FindControl<Button>("ToggleWormholes")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
- await Task.Delay(100);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v012-monitor-fixture.png");
+ await Task.Delay(100);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v013-monitor-fixture.png");
  feed.Clear();typeof(MainWindow).GetMethod("UpdateAlert",binding)!.Invoke(window,null);
- if(window.FindControl<Border>("NearbyTag")!.IsVisible)throw new Exception("Yellow tag did not disappear");
+ if(!window.FindControl<Border>("NearbyTag")!.IsVisible || window.FindControl<TextBlock>("NearbyTitle")!.Text!="ALL CLEAR")throw new Exception("Permanent extended area bar did not clear");
  typeof(MainWindow).GetField("lastCapture",binding)!.SetValue(window,DateTimeOffset.UtcNow.AddSeconds(-10));typeof(MainWindow).GetMethod("UpdateAlert",binding)!.Invoke(window,null);
- if(window.FindControl<Image>("LocalPreview")!.Source!=null||window.FindControl<TextBlock>("AlertTitle")!.Text=="LOCAL CLEAR")throw new Exception("Stale frame still appears live");
+ if(window.FindControl<Image>("LocalPreview")!.Source!=null||window.FindControl<TextBlock>("AlertTitle")!.Text=="ALL CLEAR")throw new Exception("Stale frame still appears live");
  window.StopMonitor();
+ var scan=typeof(MainWindow).GetMethod("ScanLocal",binding)!;
+ var request=typeof(MainWindow).GetField("captureRequest",binding)!;
+ var hostile=System.Text.Json.JsonSerializer.SerializeToElement(new{rows=new[]{new{name="Doov",confidence=.99,standing="Hostile"},new{name="Chong Dong",confidence=.99,standing="Ignored"}}});
+ request.SetValue(window,(Func<object,Task<System.Text.Json.JsonElement>>)(_=>Task.FromResult(hostile)));
+ window.StartMonitor(0,[0,0,1,1],null);
+ await (Task)scan.Invoke(window,null)!;await (Task)scan.Invoke(window,null)!;
+ if(window.FindControl<TextBlock>("AlertTitle")!.Text!="HOSTILE IN LOCAL")throw new Exception("Hostile capture not red");
+ feed.Add(new IntelReport(DateTimeOffset.UtcNow,"Fixture Scout",adjacent+" Cynoseidon",[adjacent],false,"Intel.WOMP"));
+ typeof(MainWindow).GetMethod("UpdateAlert",binding)!.Invoke(window,null);
+ if(window.FindControl<TextBlock>("NearbyTitle")!.Text!="REPORTED THREATS NEARBY")throw new Exception("Shorthand report did not activate independent area bar during red");
+ await Task.Delay(100);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v013-red-yellow.png");
+ request.SetValue(window,(Func<object,Task<System.Text.Json.JsonElement>>)(_=>Task.FromResult(capture)));
+ await (Task)scan.Invoke(window,null)!;
+ if(window.FindControl<TextBlock>("AlertTitle")!.Text!="ALL CLEAR"||window.FindControl<TextBlock>("NearbyTitle")!.Text!="REPORTED THREATS NEARBY")throw new Exception("Local did not clear independently of yellow");
+ for(int i=0;i<3;i++)
+ {
+     window.StopMonitor();var retainedCrop=window.CaptureSelection??throw new Exception("Stop lost selection");window.StartMonitor(retainedCrop.Id,retainedCrop.Area,retainedCrop.System);
+     await (Task)scan.Invoke(window,null)!;
+     if(window.FindControl<TextBlock>("AlertTitle")!.Text!="ALL CLEAR")throw new Exception("Stop/start failed to resume recognition");
+ }
+ var pending=new TaskCompletionSource<System.Text.Json.JsonElement>();request.SetValue(window,(Func<object,Task<System.Text.Json.JsonElement>>)(_=>pending.Task));
+ var oldScan=(Task)scan.Invoke(window,null)!;
+ window.StopMonitor();window.StartMonitor(0,[0,0,1,1],null);pending.SetResult(hostile);await oldScan;
+ if(window.FindControl<TextBlock>("TriggerDetail")!.IsVisible)throw new Exception("Old session result contaminated restarted monitor");
+ request.SetValue(window,(Func<object,Task<System.Text.Json.JsonElement>>)(_=>Task.FromResult(capture)));await (Task)scan.Invoke(window,null)!;
+ if(window.FindControl<TextBlock>("AlertTitle")!.Text!="ALL CLEAR")throw new Exception("New session did not recover after in-flight restart");
+ window.FindControl<Button>("MonitorSetup")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));await Task.Delay(100);
+ var reopened=(MonitorWindow)typeof(MainWindow).GetField("monitorWindow",binding)!.GetValue(window)!;
+ if(typeof(MonitorWindow).GetField("localArea",binding)!.GetValue(reopened)==null)throw new Exception("Reopened settings lost crop");reopened.Close();
+ window.StopMonitor();
+ Console.WriteLine("PASS: Automatic red clearing, independent area report, repeated restart and stale-session rejection");
  Console.WriteLine("PASS: Preview stays active with settings closed, independent tags work, stale capture is cleared");
  Console.WriteLine("Automatic desktop ingestion smoke checks passed on "+System.Runtime.InteropServices.RuntimeInformation.OSDescription);
 }

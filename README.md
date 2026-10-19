@@ -1,12 +1,16 @@
-# SMT4Mac v0.12.0
+# SMT4Mac v0.13.0
 
-See [v0.12.0 changes and monitoring behavior](RELEASE-v0.12.0.md). Native screen monitoring requires macOS 14+. ESI character login remains deferred.
+See [v0.13.0 changes and monitoring behavior](RELEASE-v0.13.0.md). Native screen monitoring requires macOS 14+. ESI character login remains deferred.
 
 # SMT4Mac — Native macOS client
 
 A native macOS map and intel-monitoring beta. Includes the self-contained `.app`; no Terminal launcher or .NET installation is required.
 
-## New in v0.12
+## New in v0.13
+
+Local status automatically clears after a healthy friendly-only scan. Local and Extended Area now have permanent independent bars and notifications. Stop/start retains the crop and rejects old-session results. Intel pilot sightings no longer need hostile keywords, and the top member-count/person-icon header is excluded from pilot OCR. See the release notes for details.
+
+## Previous: v0.12
 
 - Permanent map, Intel Stream and Local Monitor columns, with a live crop preview and independent Local/nearby status tags.
 - Automatic constellation **or** three-jump yellow coverage from your current system. Yellow disappears when reports clear or expire.
@@ -40,7 +44,7 @@ After installing, the app rereads recent history automatically. Your earlier tes
 
 ## Download
 
-[Download v0.12.0 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.12.0/SMT4Mac-0.12.0-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
+[Download v0.13.0 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.13.0/SMT4Mac-0.13.0-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
 
 The ZIP includes the compiled app and corresponding source. The installed app is named **SMT4Mac.app**.
 

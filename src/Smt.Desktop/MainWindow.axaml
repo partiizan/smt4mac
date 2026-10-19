@@ -8,7 +8,7 @@
      <StackPanel><TextBlock Text="SMT4Mac" FontWeight="Bold" FontSize="17" LetterSpacing="2"/><TextBlock Text="NEW EDEN INTELLIGENCE" Classes="caption" FontSize="9"/></StackPanel>
     </StackPanel>
     <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="Your region. In focus." FontSize="19" FontWeight="SemiBold"/><TextBlock Name="DataSummary" Classes="muted" FontSize="11"/></StackPanel>
-    <Border Grid.Column="2" Background="#23302A" CornerRadius="5" Padding="12,7" VerticalAlignment="Center"><TextBlock Text="EXPERIMENTAL · 0.12.0" Foreground="#C8D797" FontSize="10" LetterSpacing="1"/></Border>
+    <Border Grid.Column="2" Background="#23302A" CornerRadius="5" Padding="12,7" VerticalAlignment="Center"><TextBlock Text="EXPERIMENTAL · 0.13.0" Foreground="#C8D797" FontSize="10" LetterSpacing="1"/></Border>
    </Grid>
   </Border>
   <Grid Name="Workspace" Grid.Row="1">
@@ -58,10 +58,12 @@
      <StackPanel Spacing="10">
       <TextBlock Text="Local monitor" FontSize="20" FontWeight="SemiBold"/>
       <TextBlock Name="MonitorLocation" Text="Set your current system in settings" FontSize="11" Classes="muted" TextWrapping="Wrap"/>
+      <TextBlock Text="LOCAL" Classes="caption"/>
       <Border Name="TrafficLight" Background="#364354" CornerRadius="6" Padding="12"><TextBlock Name="AlertTitle" Text="MONITORING UNAVAILABLE" FontWeight="Bold" TextWrapping="Wrap"/></Border>
       <TextBlock Name="AlertDetail" FontSize="11" TextWrapping="Wrap" Classes="muted"/>
-      <Border Name="NearbyTag" IsVisible="False" Background="#D0A62C" CornerRadius="6" Padding="12">
-       <StackPanel Spacing="5"><TextBlock Text="HOSTILES NEARBY" FontWeight="Bold" Foreground="#141B24"/><TextBlock Name="NearbyDetail" FontSize="11" TextWrapping="Wrap" Foreground="#141B24"/></StackPanel>
+      <TextBlock Text="EXTENDED AREA · 3 JUMPS + CONSTELLATION" FontSize="10" TextWrapping="Wrap" Classes="muted"/>
+      <Border Name="NearbyTag" IsVisible="True" Background="#D0A62C" CornerRadius="6" Padding="12">
+       <StackPanel Spacing="5"><TextBlock Name="NearbyTitle" Text="ALL CLEAR" TextWrapping="Wrap" FontWeight="Bold" Foreground="#141B24"/><TextBlock Name="NearbyDetail" FontSize="11" TextWrapping="Wrap" Foreground="#141B24"/></StackPanel>
       </Border>
       <TextBlock Text="LIVE LOCAL PREVIEW" Classes="caption" Margin="0,6,0,0"/>
       <Border Background="#05090F" CornerRadius="6" MinHeight="100" MaxHeight="260" Padding="6">
@@ -71,7 +73,7 @@
       <TextBlock Name="TriggerDetail" FontSize="11" Foreground="#FFABB4" TextWrapping="Wrap" IsVisible="False"/>
       <Button Name="MonitorSetup" Content="Local monitor &amp; alert settings…" FontSize="11" HorizontalAlignment="Stretch"/>
       <Border BorderBrush="#243143" BorderThickness="0,1,0,0" Padding="0,12,0,0">
-       <StackPanel Spacing="7"><TextBlock Text="ALERT CONDITIONS" Classes="caption"/><TextBlock Text="Green · Local clear" Foreground="#65D7A4" FontSize="11"/><TextBlock Text="Yellow · Threats nearby" Foreground="#EAC65A" FontSize="11"/><TextBlock Text="Red · Immediate local threat" Foreground="#FF8F9E" FontSize="11"/><TextBlock Text="Visible roster only. Red stays active until you verify in game and restart capture." TextWrapping="Wrap" Classes="muted" FontSize="10"/></StackPanel>
+       <StackPanel Spacing="7"><TextBlock Text="ALERT CONDITIONS" Classes="caption"/><TextBlock Text="Green · Local clear" Foreground="#65D7A4" FontSize="11"/><TextBlock Text="Yellow · Threats nearby" Foreground="#EAC65A" FontSize="11"/><TextBlock Text="Red · Immediate local threat" Foreground="#FF8F9E" FontSize="11"/><TextBlock Text="Visible roster only. Status updates automatically. Keep the selected Local window fixed." TextWrapping="Wrap" Classes="muted" FontSize="10"/></StackPanel>
       </Border>
      </StackPanel>
     </ScrollViewer>

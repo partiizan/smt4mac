@@ -6,7 +6,16 @@ import Vision
 // Loaded inside SMT4Mac so screen-recording consent belongs to the app bundle.
 private let lock = NSLock()
 private var result: String? = nil
-private let speech = NSSpeechSynthesizer()
+private final class AlertSpeech:NSObject,NSSpeechSynthesizerDelegate {
+    private let synth=NSSpeechSynthesizer()
+    private var pending:[(String,Float)]=[]
+    private var active=false
+    override init(){super.init();synth.delegate=self}
+    func enqueue(_ message:String,_ volume:Float){pending.append((message,volume));next()}
+    private func next(){guard !active,!pending.isEmpty else {return};let item=pending.removeFirst();synth.volume=item.1;active=true;if !synth.startSpeaking(item.0){active=false;next()}}
+    func speechSynthesizer(_ sender:NSSpeechSynthesizer,didFinishSpeaking finishedSpeaking:Bool){active=false;next()}
+}
+private let speech=AlertSpeech()
 private func finish(_ value: [String:Any]) {
     let data = (try? JSONSerialization.data(withJSONObject:value)) ?? Data("{}".utf8)
     lock.lock(); result = String(data:data,encoding:.utf8); lock.unlock()
@@ -32,9 +41,39 @@ private func rosterLines(_ fragments: [TextFragment]) -> [[TextFragment]] {
     }
     return lines.map{$0.sorted(by:{$0.box.minX < $1.box.minX})}
 }
+// Recognize a topmost numeric count with a person-shaped grey icon. Numeric pilot
+// names and numeric suffixes elsewhere in the roster remain ordinary pilot rows.
+private func memberCountHeader(_ img:CGImage,_ lines:[[TextFragment]]) -> Bool {
+    guard let first=lines.first,let anchor=first.first else {return false}
+    let text=first.map{$0.text}.joined(separator:"").replacingOccurrences(of:",",with:"")
+    guard !text.isEmpty,text.count<=6,text.allSatisfy({$0.isNumber}),lines.count>1 else {return false}
+    let box=anchor.box, next=lines[1][0].box
+    guard 1-box.maxY<=max(0.15,box.height*6),box.midY-next.midY>box.height*1.3 else {return false}
+    let bitmap=NSBitmapImageRep(cgImage:img),h=max(6,Int(box.height*Double(img.height)))
+    let edge=Int(box.minX*Double(img.width))-2
+    let top=max(0,Int((1-box.maxY)*Double(img.height))-h/3)
+    let bottom=min(img.height-1,Int((1-box.minY)*Double(img.height))+h/3)
+    guard edge>0,bottom>top else {return false}
+    var rows:[Int:[Int]]=[:]
+    for y in top...bottom {for x in max(0,edge-h*3)...edge {
+        guard let c=bitmap.colorAt(x:x,y:y)?.usingColorSpace(.deviceRGB) else {continue}
+        var hue:CGFloat=0,sat:CGFloat=0,bright:CGFloat=0,alpha:CGFloat=0
+        c.getHue(&hue,saturation:&sat,brightness:&bright,alpha:&alpha)
+        if sat<0.25 && bright>0.40 {rows[y,default:[]].append(x)}
+    }}
+    let ys=rows.keys.sorted();guard let firstY=ys.first,let lastY=ys.last,lastY-firstY>=4 else {return false}
+    let middle=(firstY+lastY)/2
+    let upper=rows.filter{$0.key<=middle}.values.flatMap{$0},lower=rows.filter{$0.key>middle}.values.flatMap{$0}
+    guard let ul=upper.min(),let ur=upper.max(),let ll=lower.min(),let lr=lower.max() else {return false}
+    let head=ur-ul+1,shoulders=lr-ll+1
+    return head>=2 && shoulders>=head+2 && shoulders<=h*2 && abs((ul+ur)-(ll+lr))<=h
+}
 private func classify(_ img: CGImage, _ fragments: [TextFragment]) -> [[String:Any]] {
     let bitmap=NSBitmapImageRep(cgImage:img)
-    return rosterLines(fragments).compactMap {line -> [String:Any]? in
+    let lines=rosterLines(fragments)
+    let skipCount=memberCountHeader(img,lines)
+    return lines.enumerated().compactMap {index,line -> [String:Any]? in
+        if index==0 && skipCount {return nil}
         guard let first=line.first else {return nil}
         let name=line.map{$0.text}.joined(separator:" ")
         // Only the leftmost fragment defines the badge position. Later words and numeric
@@ -95,8 +134,7 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
         do {
             let args=try JSONSerialization.jsonObject(with:Data(text.utf8)) as! [String:Any]
             if args["action"] as? String == "alert" {
-                speech.volume=(args["volume"] as? Float) ?? 0.7
-                if args["voice"] as? Bool == true {speech.stopSpeaking();speech.startSpeaking(String((args["message"] as? String ?? "Alert").prefix(240)))}
+                if args["voice"] as? Bool == true {speech.enqueue(String((args["message"] as? String ?? "Alert").prefix(240)),(args["volume"] as? Float) ?? 0.7)}
                 if args["siren"] as? Bool == true {NSSound(named:"Sosumi")?.play()}
                 finish(["ok":true]);return
             }
@@ -158,6 +196,20 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
                 guard borderRows.allSatisfy({$0["standing"] as? String == "Ignored"}) else {throw NSError(domain:"SMT",code:12,userInfo:[NSLocalizedDescriptionKey:"Border/empty-space regression: \(borderRows)"])}
                 let blank=NSImage(size:NSSize(width:500,height:300));blank.lockFocus();NSColor.black.setFill();NSRect(x:0,y:0,width:500,height:300).fill();blank.unlockFocus()
                 guard let blankCG=blank.cgImage(forProposedRect:nil,context:nil,hints:nil),try recognize(blankCG).isEmpty else {throw NSError(domain:"SMT",code:13,userInfo:[NSLocalizedDescriptionKey:"Blank crop produced roster rows"])}
+                for count in ["94","104"] {
+                    let image=NSImage(size:NSSize(width:400,height:150));image.lockFocus()
+                    NSColor.black.setFill();NSRect(x:0,y:0,width:400,height:150).fill()
+                    NSColor.lightGray.setFill();NSBezierPath(ovalIn:NSRect(x:19,y:126,width:6,height:6)).fill();NSBezierPath(ovalIn:NSRect(x:16,y:118,width:12,height:5)).fill()
+                    let attrs:[NSAttributedString.Key:Any]=[.font:NSFont.systemFont(ofSize:14),.foregroundColor:NSColor.white]
+                    (count as NSString).draw(at:NSPoint(x:36,y:117),withAttributes:attrs)
+                    var fragments=[TextFragment(text:count,confidence:1,box:CGRect(x:36/400.0,y:120/150.0,width:28/400.0,height:12/150.0))]
+                    for (i,name) in ["Friendly Pilot","Citizen 93502323","12345"].enumerated(){let y=CGFloat(90-i*24);NSColor.blue.setFill();NSRect(x:17,y:y+3,width:12,height:14).fill();(name as NSString).draw(at:NSPoint(x:36,y:y),withAttributes:attrs);fragments.append(TextFragment(text:name,confidence:1,box:CGRect(x:36/400.0,y:(y+3)/150,width:140/400.0,height:14/150.0)))}
+                    image.unlockFocus();guard let cg=image.cgImage(forProposedRect:nil,context:nil,hints:nil) else {throw NSError(domain:"SMT",code:14)}
+                    let rows=classify(cg,fragments)
+                    guard rows.count==3,rows.contains(where:{$0["name"] as? String == "12345"}),rows.allSatisfy({$0["standing"] as? String == "Friendly"}) else {throw NSError(domain:"SMT",code:15,userInfo:[NSLocalizedDescriptionKey:"Member header regression: \(rows)"])}
+                    let recognized=try recognize(cg)
+                    guard !recognized.contains(where:{$0["name"] as? String == count}),recognized.count==3 else {throw NSError(domain:"SMT",code:16,userInfo:[NSLocalizedDescriptionKey:"Vision member count regression: \(recognized)"])}
+                }
                 // A tall Local roster with small names must not be discarded by Vision's relative-height filter.
                 let tall=NSImage(size:NSSize(width:500,height:1800));tall.lockFocus()
                 NSColor.black.setFill();NSRect(x:0,y:0,width:500,height:1800).fill()

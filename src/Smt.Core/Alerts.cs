@@ -10,19 +10,28 @@ public static class AlertEngine
     {
         var feed=reports.ToArray();
         var options=new AlertOptions(system,"Automatic",Jumps:3,Minutes:minutes);
-        var overall=Evaluate(u,feed,options,now,localHealthy,localThreat,intelHealthy);
         var nearby=Evaluate(u,feed.Select(r=>r with{Systems=r.Systems.Where(s=>!s.Equals(system.Trim(),StringComparison.OrdinalIgnoreCase)).ToArray()}),options,now,true,false,intelHealthy);
-        var local=overall.Level=="Red"?overall:localHealthy?new AlertResult("Green","LOCAL CLEAR","No hostile badge detected in the visible Local roster."):new AlertResult("Gray","MONITORING UNAVAILABLE","Local capture is stopped, stale or uncertain.");
+        var local=localThreat?new AlertResult("Red","HOSTILE IN LOCAL","Hostile standing badge confirmed in the current visible roster."):localHealthy?new AlertResult("Green","ALL CLEAR","No hostile badge detected in the visible Local roster."):new AlertResult("Gray","MONITORING UNAVAILABLE","Local capture is stopped, stale or uncertain.");
         var current=u.Systems.GetValueOrDefault(system.Trim());
         var coverage=current==null?"Enter a valid current system in settings.":$"{current.Name} · {current.Constellation} constellation + 3 stargate jumps";
         if(!intelHealthy)coverage+=" · Selected intel logs unavailable";
-        return new(local,nearby.Level=="Yellow"?nearby:null,coverage,overall);
+        AlertResult area;
+        if(nearby.Level=="Yellow")
+        {
+            var name=nearby.Detail.Split(" · ")[0];IReadOnlyList<StarSystem> route=current==null?[]:u.Route(current.Name,name);
+            var distance=route.Count>0?$"{route.Count-1} gate jumps":"same constellation";
+            area=nearby with{Title="REPORTED THREATS NEARBY",Detail=nearby.Detail+" · "+distance};
+        }
+        else area=current!=null&&intelHealthy?new("Clear","ALL CLEAR","No active reports elsewhere in your extended area."):new("Gray","MONITORING UNAVAILABLE","Choose a valid system and check selected intel logs.");
+        return new(local,area,coverage,local.Level=="Red"?local:area.Level=="Yellow"?area:local);
     }
-    public static bool IsThreat(IntelReport r) => !r.Clear && !r.Message.Contains('?') &&
-        Regex.IsMatch(r.Message,@"\b(hostiles?|neutrals?|neuts?|reds?|tackl\w*|camp\w*|bubbles?|interceptors?|sabres?|lokis?|legions?|proteus|tengus?|gang|fleet|\d+\s*(?:in|on|local))\b",RegexOptions.IgnoreCase);
+    // Selected intel channels are explicit sighting feeds. A system/pilot report need not
+    // contain the word 'hostile'. Questions, clear reports and explicit friendly/test messages do not alert.
+    public static bool IsThreat(IntelReport r) => r.Systems.Length>0 && !r.Clear && !r.Message.Contains('?') &&
+        !Regex.IsMatch(r.Message,@"\b(test(?:ing)?|friendly|friendlies|all blue|all blues)\b",RegexOptions.IgnoreCase);
     public static AlertResult Evaluate(Universe u,IEnumerable<IntelReport> reports,AlertOptions o,DateTimeOffset now,bool localHealthy,bool localThreat,bool intelHealthy)
     {
-        if(localThreat)return new("Red","RED ALERT","Hostile standing badge detected in visible Local. Verify in game; restart capture to reset this alert.");
+        if(localThreat)return new("Red","RED ALERT","Hostile standing badge confirmed in the current visible Local roster.");
         var current=u.Systems.GetValueOrDefault(o.System.Trim());
         var recent=reports.Where(r=>r.Time<=now && r.Time>=now.AddMinutes(-o.Minutes)).OrderBy(r=>r.Time);
         var latest=new Dictionary<string,IntelReport>(StringComparer.OrdinalIgnoreCase);
@@ -70,7 +79,7 @@ public sealed class LocalTracker
         // Unknown geometry is a capture warning, never evidence of a hostile.
         ThreatRows=valid.Where(r=>r.Confidence>=.75 && r.Standing=="Hostile" && priorHostiles.Contains(Key(r))).ToArray();
         Confirmed=valid.Where(r=>r.Confidence>=.75 && prior.Contains(Key(r))).ToArray();
-        Healthy=valid.Length>0 && Confirmed.Length==valid.Length && valid.All(r=>r.Standing is "Friendly" or "Ignored" || (r.Standing=="Hostile" && ThreatRows.Any(t=>Key(t)==Key(r))));
+        Healthy=valid.Length>0 && valid.All(r=>r.Confidence>=.75) && valid.All(r=>r.Standing is "Friendly" or "Ignored" || (r.Standing=="Hostile" && ThreatRows.Any(t=>Key(t)==Key(r))));
         prior=valid.Where(r=>r.Confidence>=.75).Select(Key).ToHashSet();
         priorHostiles=valid.Where(r=>r.Confidence>=.75 && r.Standing=="Hostile").Select(Key).ToHashSet();
     }

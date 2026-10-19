@@ -20,13 +20,16 @@ public partial class MainWindow
 {
     private MonitorPrefs monitorPrefs=new();
     private readonly LocalTracker localTracker=new();
-    private DateTimeOffset lastCapture=DateTimeOffset.MinValue,lastSound=DateTimeOffset.MinValue;
+    private DateTimeOffset lastCapture=DateTimeOffset.MinValue;
     private readonly DispatcherTimer monitorTimer=new(){Interval=TimeSpan.FromSeconds(1)};
-    private bool captureBusy,monitorRunning,logsHealthy,latchedThreat;
+    private bool captureBusy,monitorRunning,logsHealthy;
     private int captureWindow;
     private double[]? localArea,systemArea;
     private string? screenSystem;
-    private string previousAlert="Gray";
+    private readonly AlertNotifications notifications=new();
+    private long captureGeneration;
+    private Func<object,Task<JsonElement>> captureRequest=NativeCapture.Call;
+    public (int Id,double[] Area,double[]? System)? CaptureSelection=>localArea==null?null:(captureWindow,(double[])localArea.Clone(),systemArea==null?null:(double[])systemArea.Clone());
     private string triggerDetail="";
     private Bitmap? localPreview;
     private string captureDetail="Local capture has not been started.";
@@ -43,39 +46,40 @@ public partial class MainWindow
         };
         Get<TextBox>("IntelSearch").TextChanged+=(_,_)=>RefreshIntel();
         monitorTimer.Tick+=async(_,_)=>{UpdateAlert();await ScanLocal();};monitorTimer.Start();
-        Closed+=(_,_)=>{monitorTimer.Stop();monitorWindow?.Close();ClearLocalPreview();};UpdateAlert();
+        Closed+=(_,_)=>{monitorTimer.Stop();StopMonitor();monitorWindow?.Close();};UpdateAlert();
     }
     public void ConfigureMonitor(MonitorPrefs prefs)
     {
         monitorPrefs=prefs with{System=prefs.System.Trim(),Coverage="Automatic",Target=universe.Systems.GetValueOrDefault(prefs.System.Trim())?.Constellation??"",Jumps=3,Minutes=Math.Clamp(prefs.Minutes,1,30),Volume=Math.Clamp(prefs.Volume,0,1)};
         try{Directory.CreateDirectory(SettingsStore.Folder);File.WriteAllText(PrefPath+".tmp",JsonSerializer.Serialize(monitorPrefs));File.Move(PrefPath+".tmp",PrefPath,true);}catch(Exception e){SetStatus("Monitoring settings: "+e.Message);}
-        localTracker.Reset();UpdateAlert();
+        UpdateAlert();
     }
     public void StartMonitor(int id,double[] area,double[]? system)
     {
-        ClearLocalPreview();triggerDetail="";captureDetail="Waiting for first Local capture…";latchedThreat=false;captureWindow=id;localArea=area;systemArea=system;screenSystem=null;localTracker.Reset();lastCapture=DateTimeOffset.MinValue;monitorRunning=true;UpdateAlert();
+        captureGeneration++;notifications.ResetLocal();ClearLocalPreview();triggerDetail="";captureDetail="Waiting for first Local capture…";captureWindow=id;localArea=area;systemArea=system;screenSystem=null;localTracker.Reset();lastCapture=DateTimeOffset.MinValue;monitorRunning=true;UpdateAlert();
     }
-    public void StopMonitor(){ClearLocalPreview();triggerDetail="";captureDetail="Local capture is stopped.";monitorRunning=false;latchedThreat=false;screenSystem=null;localTracker.Reset();UpdateAlert();}
+    public void StopMonitor(){captureGeneration++;notifications.ResetLocal();ClearLocalPreview();triggerDetail="";captureDetail="Local capture is stopped.";monitorRunning=false;lastCapture=DateTimeOffset.MinValue;screenSystem=null;localTracker.Reset();UpdateAlert();}
     private async Task ScanLocal()
     {
         if(captureBusy||!monitorRunning||localArea==null)return;
-        captureBusy=true;int id=captureWindow;var roi=localArea;
+        captureBusy=true;int id=captureWindow;var roi=localArea;var generation=captureGeneration;
         try
         {
-            var data=await NativeCapture.Call(new{action="capture",id,roi,preview=true});
-            if(!monitorRunning||id!=captureWindow||!ReferenceEquals(roi,localArea))return;
+            var data=await captureRequest(new{action="capture",id,roi,preview=true});
+            if(!monitorRunning||generation!=captureGeneration)return;
             ApplyLocalCapture(data);
             if(systemArea!=null)
             {
                 screenSystem=null;
-                var location=await NativeCapture.Call(new{action="capture",id,roi=systemArea,preview=false});
+                var location=await captureRequest(new{action="capture",id,roi=systemArea,preview=false});
+                if(!monitorRunning||generation!=captureGeneration)return;
                 var candidates=location.GetProperty("rows").EnumerateArray().Where(r=>r.GetProperty("confidence").GetDouble()>=.85)
                     .SelectMany(r=>Regex.Matches(r.GetProperty("name").GetString()??"",@"[\p{L}\p{N}'-]+").Select(m=>m.Value))
                     .Where(n=>universe.Systems.ContainsKey(n)).Select(n=>universe.Systems[n].Name).Distinct().ToArray();
                 if(candidates.Length==1)screenSystem=candidates[0];
             }
         }
-        catch(Exception e){ClearLocalPreview();lastCapture=DateTimeOffset.MinValue;captureDetail=e.Message;localTracker.Reset();screenSystem=null;monitorWindow?.ShowError(e.Message);SetStatus("Local monitor: "+e.Message);}
+        catch(Exception e){if(generation!=captureGeneration||!monitorRunning)return;ClearLocalPreview();lastCapture=DateTimeOffset.MinValue;captureDetail=e.Message;localTracker.Reset();screenSystem=null;monitorWindow?.ShowError(e.Message);SetStatus("Local monitor: "+e.Message);}
         finally{captureBusy=false;UpdateAlert();}
     }
     private void ClearLocalPreview()
@@ -85,10 +89,11 @@ public partial class MainWindow
     }
     public void ApplyLocalCapture(JsonElement data)
     {
+        if(!monitorRunning)return;
         var rows=data.GetProperty("rows").EnumerateArray().Select(r=>new LocalRow(r.GetProperty("name").GetString()!.Trim(),r.GetProperty("confidence").GetDouble(),r.GetProperty("standing").GetString()!)).ToArray();
         captureDetail=rows.Length==0?"No roster names recognized. Check the crop and EVE text size.":$"{rows.Length} visible rows · {rows.Count(r=>r.Standing=="Friendly")} friendly · {rows.Count(r=>r.Standing=="Ignored")} unbadged · {rows.Count(r=>r.Standing=="Unknown")} uncertain";
         localTracker.Observe(rows);
-        if(localTracker.Threat){latchedThreat=true;triggerDetail="Confirmed hostile badge: "+string.Join(", ",localTracker.ThreatRows.Select(r=>r.Name));}
+        triggerDetail=localTracker.Threat?"Confirmed hostile badge: "+string.Join(", ",localTracker.ThreatRows.Select(r=>r.Name)):"";
         lastCapture=DateTimeOffset.UtcNow;
         if(data.TryGetProperty("png",out var png) && !string.IsNullOrEmpty(png.GetString()))
         {
@@ -106,21 +111,23 @@ public partial class MainWindow
         if(!fresh){if(localPreview!=null)ClearLocalPreview();localTracker.Reset();}
         Get<TextBlock>("PreviewPlaceholder").Text=monitorRunning?"Waiting for a fresh capture…":"Start Local monitoring to see your selected area";
         var location=systemArea!=null&&monitorRunning?screenSystem??"":monitorPrefs.System;
-        var panels=AlertEngine.Panels(universe,reports,location,monitorPrefs.Minutes,now,fresh&&localTracker.Healthy,monitorRunning&&latchedThreat,logsHealthy);
+        var panels=AlertEngine.Panels(universe,reports,location,monitorPrefs.Minutes,now,fresh&&localTracker.Healthy,fresh&&localTracker.Threat,logsHealthy);
         var local=panels.Local;
         Get<Border>("TrafficLight").Background=Brush.Parse(local.Level switch{"Red"=>"#A51E35","Green"=>"#166B46",_=>"#364354"});
         Get<TextBlock>("AlertTitle").Text=local.Title;
         Get<TextBlock>("AlertDetail").Text=local.Level=="Gray"?captureDetail+(monitorRunning&&!fresh?" · waiting for fresh scan":""):local.Detail;
-        Get<Border>("NearbyTag").IsVisible=panels.Nearby!=null;
+        var area=panels.Nearby!;
+        Get<Border>("NearbyTag").IsVisible=true;
+        Get<Border>("NearbyTag").Background=Brush.Parse(area.Level=="Yellow"?"#D0A62C":"#364354");
+        Get<TextBlock>("NearbyTitle").Text=area.Title;
+        Get<TextBlock>("NearbyTitle").Foreground=area.Level=="Yellow"?Brushes.Black:Brushes.White;
+        Get<TextBlock>("NearbyDetail").Foreground=area.Level=="Yellow"?Brushes.Black:Brushes.White;
         Get<TextBlock>("NearbyDetail").Text=panels.Nearby?.Detail??"";
         Get<TextBlock>("MonitorLocation").Text=panels.Coverage;
         Get<TextBlock>("CaptureStatus").Text=(fresh?$"Live · {lastCapture:HH:mm:ss} UTC · ":monitorRunning?"Waiting · ":"Stopped · ")+captureDetail;
-        Get<TextBlock>("TriggerDetail").IsVisible=monitorRunning&&latchedThreat;
+        Get<TextBlock>("TriggerDetail").IsVisible=fresh&&localTracker.Threat;
         Get<TextBlock>("TriggerDetail").Text=triggerDetail;
-        var result=panels.Overall;
-        if(result.Level!=previousAlert&&result.Level is "Red" or "Yellow" && (result.Level=="Red" || now-lastSound>TimeSpan.FromSeconds(15)))
-        {lastSound=now;_=NotifyAlert(result.Level,result.Detail);}
-        previousAlert=result.Level;
+        foreach(var level in notifications.Observe(panels,now))_=NotifyAlert(level,level=="Red"?local.Detail:area.Detail);
     }
     public async Task TestAlert(string level,MonitorPrefs prefs)=>await NotifyAlert(level,"Alert test",prefs);
     private async Task NotifyAlert(string level,string detail,MonitorPrefs? prefs=null)
