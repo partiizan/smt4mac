@@ -47,7 +47,7 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
         if friendly>=4 && other<4 && Double(friendly)/Double(samples)<0.75 {style="Friendly"}
         else if friendly+other+neutral>=4 {style="Hostile"}
         else {style="Ignored"} // Empty badge slot: current player; blank space produces no OCR row.
-        return ["name":name,"confidence":candidate.confidence,"standing":style]
+        return ["name":name,"confidence":candidate.confidence,"standing":style,"badgeDebug":[left,right,top,bottom,friendly,other,neutral],"ocrBox":[box.minX,box.minY,box.width,box.height]]
     }
     return rows
 }
