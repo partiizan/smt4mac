@@ -1,8 +1,12 @@
 # Next build notes
 
-## Audio alerts
-- User reports that both actual audio alerts and the audio test are silent in v0.11.1.
-- Investigate both sound and speech paths; show playback errors and verify output on a real Mac.
+## Separate yellow and red alert messages
+- Audio works: user confirmed the voice/sound toggles were disabled. Remove the audio defect report.
+- Add separate editable spoken messages for yellow and red conditions using the existing generated voice.
+- Default yellow: "Caution, hostiles in the nearby area".
+- Default red: "Alert, hostiles entering local".
+- Include a test button for each condition; save both messages and respect existing voice/sound toggles and volume.
+- Preserve prompt red announcements when escalating from yellow.
 
 ## Intel channel selection
 - User expects Intel.WOMP to be the intel source. Screenshot confirms Corp_*.txt messages are entering the feed, including duplicate messages from multiple character logs.
