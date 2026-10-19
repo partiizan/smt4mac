@@ -150,6 +150,11 @@ try
  await Task.Delay(300);
  var monitor=(MonitorWindow)typeof(MainWindow).GetField("monitorWindow",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(window)!;
  if(!monitor.IsVisible)throw new Exception("Monitor settings did not open");
+ var zoomButton=monitor.GetVisualDescendants().OfType<Button>().Single(b=>b.Name=="CaptureZoomIn");
+ zoomButton.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));await Task.Delay(100);
+ if(monitor.GetVisualDescendants().OfType<Avalonia.Controls.Canvas>().Single().Width!=1000)throw new Exception("Preview zoom did not resize selection surface");
+ monitor.GetVisualDescendants().OfType<Button>().Single(b=>b.Name=="CaptureFit").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+ Console.WriteLine("PASS: Preview zoom and fit controls resize the capture selection surface");
  using(var frame=monitor.CaptureRenderedFrame())frame?.Save("screenshots/v010-monitor-setup.png");
  monitor.Close();
  Console.WriteLine("PASS: Monitoring setup opens without requesting screen permission until explicitly selected");

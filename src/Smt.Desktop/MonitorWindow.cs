@@ -26,6 +26,9 @@ public sealed class MonitorWindow:Window
     private readonly TextBox message=new(){Watermark="Spoken alert message"};
     private readonly Slider volume=new(){Minimum=0,Maximum=1,Value=.7};
     private Point? drag;
+    private double zoom=1,baseHeight=450;
+    private readonly Grid captureGrid=new();
+    private readonly ScrollViewer viewport=new(){Height=450,HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,VerticalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Auto};
     private double[]? localArea,systemArea;
     private int? previewId;
     public MonitorWindow(MainWindow owner,Universe universe,MonitorPrefs prefs)
@@ -44,20 +47,25 @@ public sealed class MonitorWindow:Window
         Button Add(string text,Action action){var b=new Button{Content=text};b.Click+=(_,_)=>action();buttons.Children.Add(b);return b;}
         Add("Find EVE windows",async()=>await Find());Add("Load preview",async()=>await Preview());Add("Start monitoring",()=>Start());Add("Stop capture",()=>{owner.StopMonitor();status.Text="Capture stopped; intel ingestion continues.";});
         stack.Children.Add(areaMode);
-        var grid=new Grid{Width=800,Height=450};grid.Children.Add(preview);grid.Children.Add(overlay);overlay.Children.Add(selection);stack.Children.Add(grid);
+        stack.Children.Add(new TextBlock{Text="Scroll over preview to zoom; use scrollbars to pan. Drag to select an area.",TextWrapping=TextWrapping.Wrap});
+        var zoomBar=new StackPanel{Orientation=Avalonia.Layout.Orientation.Horizontal,Spacing=8};
+        foreach(var (label,factor) in new[]{("−",.8),("+",1.25),("Fit",0.0)}){var b=new Button{Content=label,Name=label=="+"?"CaptureZoomIn":label=="−"?"CaptureZoomOut":"CaptureFit"};b.Click+=(_,_)=>SetZoom(factor==0?1:zoom*factor);zoomBar.Children.Add(b);}
+        stack.Children.Add(zoomBar);stack.Children.Add(status);
+        captureGrid.Width=800;captureGrid.Height=450;captureGrid.Children.Add(preview);captureGrid.Children.Add(overlay);overlay.Children.Add(selection);viewport.Content=captureGrid;stack.Children.Add(viewport);
+        overlay.PointerWheelChanged+=(_,e)=>{if(drag!=null)return;SetZoom(zoom*(e.Delta.Y>0?1.2:1/1.2),e.GetPosition(viewport));e.Handled=true;};
+        areaMode.SelectionChanged+=(_,_)=>DrawArea();
         overlay.PointerPressed+=(_,e)=>{if(previewId==null)return;drag=e.GetPosition(overlay);e.Pointer.Capture(overlay);};
         overlay.PointerMoved+=(_,e)=>{if(drag is {} a){var p=e.GetPosition(overlay);Draw(a,p);}};
         overlay.PointerReleased+=(_,e)=>
         {
             if(drag is not {} a)return;var p=e.GetPosition(overlay);drag=null;e.Pointer.Capture(null);
-            double x=Math.Clamp(Math.Min(a.X,p.X),0,800),y=Math.Clamp(Math.Min(a.Y,p.Y),0,450),w=Math.Min(800-x,Math.Abs(p.X-a.X)),h=Math.Min(450-y,Math.Abs(p.Y-a.Y));
-            if(w<10||h<10){status.Text="Area too small; drag a larger rectangle.";return;}
-            double[] roi=[x/800,y/450,w/800,h/450];
+            var roi=CaptureArea.Normalize(a.X,a.Y,p.X,p.Y,overlay.Width,overlay.Height);
+            if(roi[2]*overlay.Width<10||roi[3]*overlay.Height<10){status.Text="Area too small; drag a larger rectangle.";return;}
             if(areaMode.SelectedIndex==0)localArea=roi;else systemArea=roi;
             status.Text=(areaMode.SelectedIndex==0?"Local":"System")+" area selected. Press Start monitoring to apply.";
         };
-        stack.Children.Add(status);stack.Children.Add(live);stack.Children.Add(roster);
-        stack.Children.Add(new TextBlock{Text="Nullsec rules: green, blue and purple icons are friendly. Red, grey, orange, yellow and neutral/no-icon rows trigger Red after two matching scans. Verify recognition against your EVE settings. Red Local alerts stay latched until you verify in game and restart capture. A pilot no longer visible is not confirmed to have left. Keep the entire Local roster visible where possible.",TextWrapping=TextWrapping.Wrap,Foreground=Brush.Parse("#E8BE76")});
+        stack.Children.Add(live);stack.Children.Add(roster);
+        stack.Children.Add(new TextBlock{Text="Nullsec rules: green, blue and purple icons are friendly. Red, grey, orange, yellow and neutral/no-icon rows trigger Red after two consecutive scans. Verify recognition against your EVE settings. Red Local alerts stay latched until you verify in game and restart capture. A pilot no longer visible is not confirmed to have left. Keep the entire Local roster visible where possible.",TextWrapping=TextWrapping.Wrap,Foreground=Brush.Parse("#E8BE76")});
         stack.Children.Add(system);
         stack.Children.Add(new TextBlock{Text="YELLOW COVERAGE",FontWeight=FontWeight.Bold});stack.Children.Add(coverage);stack.Children.Add(target);stack.Children.Add(jumps);stack.Children.Add(minutes);
         var alerts=new StackPanel{Orientation=Avalonia.Layout.Orientation.Horizontal,Spacing=15};alerts.Children.Add(voice);alerts.Children.Add(siren);alerts.Children.Add(popup);stack.Children.Add(alerts);stack.Children.Add(message);stack.Children.Add(new TextBlock{Text="Voice volume"});stack.Children.Add(volume);
@@ -66,12 +74,25 @@ public sealed class MonitorWindow:Window
         var test=new Button{Content="Test audio"};test.Click+=async(_,_)=>{try{await NativeCapture.Call(new{action="alert",voice=voice.IsChecked==true,siren=siren.IsChecked==true,message=message.Text??"Test alert",volume=volume.Value});}catch(Exception e){ShowError(e.Message);}};stack.Children.Add(test);
     }
     private MonitorPrefs Prefs()=>new(system.Text?.Trim()??"",coverage.SelectedItem as string??"Nearby",target.Text?.Trim()??"",(int)(jumps.Value??3),(int)(minutes.Value??5),voice.IsChecked==true,siren.IsChecked==true,popup.IsChecked==true,message.Text??"Threat detected",volume.Value);
-    private void Draw(Point a,Point b){Canvas.SetLeft(selection,Math.Clamp(Math.Min(a.X,b.X),0,800));Canvas.SetTop(selection,Math.Clamp(Math.Min(a.Y,b.Y),0,450));selection.Width=Math.Min(800,Math.Abs(a.X-b.X));selection.Height=Math.Min(450,Math.Abs(a.Y-b.Y));}
+    private void Draw(Point a,Point b){Canvas.SetLeft(selection,Math.Clamp(Math.Min(a.X,b.X),0,overlay.Width));Canvas.SetTop(selection,Math.Clamp(Math.Min(a.Y,b.Y),0,overlay.Height));selection.Width=Math.Min(overlay.Width,Math.Abs(a.X-b.X));selection.Height=Math.Min(overlay.Height,Math.Abs(a.Y-b.Y));}
+    private void SetZoom(double value,Point? anchor=null)
+    {
+        var old=zoom;zoom=Math.Clamp(value,1,6);var point=anchor??new Point(0,0);var offset=viewport.Offset;
+        preview.Width=overlay.Width=captureGrid.Width=800*zoom;
+        preview.Height=overlay.Height=captureGrid.Height=baseHeight*zoom;
+        viewport.Offset=new Vector(Math.Max(0,(offset.X+point.X)*zoom/old-point.X),Math.Max(0,(offset.Y+point.Y)*zoom/old-point.Y));DrawArea();
+    }
+    private void DrawArea()
+    {
+        var area=areaMode.SelectedIndex==0?localArea:systemArea;
+        if(area==null){selection.Width=selection.Height=0;return;}
+        Draw(new Point(area[0]*overlay.Width,area[1]*overlay.Height),new Point((area[0]+area[2])*overlay.Width,(area[1]+area[3])*overlay.Height));
+    }
     private async Task Find(){try{var d=await NativeCapture.Call(new{action="list"});windows.ItemsSource=d.GetProperty("windows").EnumerateArray().Select(w=>new CaptureWindow(w.GetProperty("id").GetInt32(),w.GetProperty("title").GetString()!)).ToArray();windows.SelectedIndex=0;status.Text="Choose the character's window, then load its preview.";}catch(Exception e){ShowError(e.Message);}}
     private async Task Preview()
     {
         if(windows.SelectedItem is not CaptureWindow w){ShowError("Choose an EVE window first.");return;}
-        try{var d=await NativeCapture.Call(new{action="capture",id=w.Id,preview=true,scan=false});SetImage(preview,d);previewId=w.Id;localArea=null;systemArea=null;selection.Width=0;selection.Height=0;status.Text="Drag around Local names plus standing icons.";}catch(Exception e){ShowError(e.Message);}
+        try{var d=await NativeCapture.Call(new{action="capture",id=w.Id,preview=true,scan=false});SetImage(preview,d);baseHeight=800.0*d.GetProperty("height").GetInt32()/d.GetProperty("width").GetInt32();SetZoom(1);previewId=w.Id;localArea=null;systemArea=null;selection.Width=0;selection.Height=0;status.Text="Drag around Local names plus standing icons.";}catch(Exception e){ShowError(e.Message);}
     }
     private void Start(){if(windows.SelectedItem is not CaptureWindow w||w.Id!=previewId||localArea==null){ShowError("Load this window's preview and select a Local area first.");return;}owner.ConfigureMonitor(Prefs());owner.StartMonitor(w.Id,localArea,systemArea);status.Text="Monitoring selected window. Leave Local visible and reselect the area if its layout changes.";}
     private static void SetImage(Image image,JsonElement d){if(d.TryGetProperty("png",out var png)){using var stream=new MemoryStream(Convert.FromBase64String(png.GetString()!));var old=image.Source as IDisposable;image.Source=new Bitmap(stream);old?.Dispose();}}

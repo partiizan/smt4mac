@@ -17,7 +17,7 @@ private func finish(_ value: [String:Any]) {
 }
 @_cdecl("smt_free") public func smtFree(_ p: UnsafeMutableRawPointer?) {free(p)}
 private func recognize(_ img: CGImage) throws -> [[String:Any]] {
-    let request=VNRecognizeTextRequest();request.recognitionLevel = .accurate;request.usesLanguageCorrection=false;request.recognitionLanguages=["en-US"]
+    let request=VNRecognizeTextRequest();request.recognitionLevel = .accurate;request.usesLanguageCorrection=false;request.minimumTextHeight=0.005;request.recognitionLanguages=["en-US"]
     try VNImageRequestHandler(cgImage:img,options:[:]).perform([request])
     let bitmap=NSBitmapImageRep(cgImage:img)
     let rows=(request.results ?? []).compactMap {observation -> [String:Any]? in
@@ -67,7 +67,13 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
                     guard let row=rows.first(where:{($0["name"] as? String)?.contains("PlayerX")==true}),row["standing"] as? String == expected else {throw NSError(domain:"SMT",code:6,userInfo:[NSLocalizedDescriptionKey:"Icon test failed: \(name) \(rows)"])}
                     checked[name]=expected
                 }
-                finish(["name":"PlayerX","rules":checked,"rulesPassed":true]);return
+                // A tall Local roster with small names must not be discarded by Vision's relative-height filter.
+                let tall=NSImage(size:NSSize(width:500,height:1800));tall.lockFocus()
+                NSColor.black.setFill();NSRect(x:0,y:0,width:500,height:1800).fill()
+                ("PlayerX" as NSString).draw(at:NSPoint(x:50,y:1700),withAttributes:[.font:NSFont.systemFont(ofSize:14),.foregroundColor:NSColor.white])
+                tall.unlockFocus()
+                guard let cg=tall.cgImage(forProposedRect:nil,context:nil,hints:nil),try recognize(cg).contains(where:{($0["name"] as? String)?.contains("PlayerX")==true}) else {throw NSError(domain:"SMT",code:7,userInfo:[NSLocalizedDescriptionKey:"Small text in tall Local roster was missed"])}
+                finish(["name":"PlayerX","rules":checked,"rulesPassed":true,"smallTextPassed":true]);return
             }
             guard CGPreflightScreenCaptureAccess() else {CGRequestScreenCaptureAccess();throw NSError(domain:"SMT",code:1,userInfo:[NSLocalizedDescriptionKey:"Allow SMT4Mac in System Settings → Privacy & Security → Screen Recording, then restart the app."])}
             let content=try await SCShareableContent.excludingDesktopWindows(true,onScreenWindowsOnly:true)

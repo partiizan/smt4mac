@@ -160,6 +160,11 @@ Check(AlertEngine.Evaluate(universe,[nearby with{Message=other+" clear?"}],opts,
 Check(AlertEngine.Evaluate(universe,[report,report with{Time=clock.AddSeconds(1),Message="clear",Clear=true}],opts,clock.AddSeconds(2),true,false,true).Level=="Green","Later clear removes threat");
 Check(AlertEngine.Evaluate(universe,[report,report with{Time=clock.AddSeconds(1),Message="clear?",Clear=true}],opts,clock.AddSeconds(2),true,false,true).Level=="Red","A question cannot clear an existing threat");
 var tracker=new LocalTracker();var row=new LocalRow("PlayerX",.95,"Unknown");tracker.Observe([row]);Check(!tracker.Healthy&&!tracker.Threat,"First OCR observation needs confirmation");tracker.Observe([row]);Check(tracker.Healthy&&tracker.Threat,"Repeated unknown row alerts conservatively");tracker.Reset();Check(!tracker.Healthy&&!tracker.Threat,"Reset invalidates old capture");
+tracker.Reset();tracker.Observe([new("P1ayerX",.55,"Hostile")]);tracker.Observe([new("PlayerX",.6,"Hostile")]);
+Check(tracker.Threat&&!tracker.Healthy,"Changing OCR spelling at moderate confidence still raises red, never green");
+Check(AlertEngine.Evaluate(universe,[],new AlertOptions(),clock,false,true,false).Level=="Red","Local red works without location or intel logs");
+var normal=CaptureArea.Normalize(80,45,240,135,800,450);var zoomed=CaptureArea.Normalize(160,90,480,270,1600,900);
+Check(normal.SequenceEqual(zoomed),"Zoomed selections preserve window-relative capture coordinates");
 Console.WriteLine($"{passed} checks passed.");
 
 sealed class FakeEsi(string json):HttpMessageHandler

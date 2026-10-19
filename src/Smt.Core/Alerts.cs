@@ -37,15 +37,27 @@ public sealed record LocalRow(string Name,double Confidence,string Standing);
 public sealed class LocalTracker
 {
     private HashSet<string> prior=[];
+    private int hostileFrames;
     public LocalRow[] Confirmed {get;private set;}=[];
     public bool Healthy {get;private set;}
-    public void Reset(){prior.Clear();Confirmed=[];Healthy=false;}
+    public void Reset(){prior.Clear();Confirmed=[];Healthy=false;hostileFrames=0;}
     public void Observe(IEnumerable<LocalRow> rows)
     {
         var valid=rows.Where(r=>r.Name.Length>1).ToArray();
+        // Alert on repeated non-friendly observations even when OCR spelling varies.
+        hostileFrames=valid.Any(r=>r.Confidence>=.4&&r.Standing!="Friendly")?hostileFrames+1:0;
         Confirmed=valid.Where(r=>r.Confidence>=.75&&prior.Contains(r.Name.ToUpperInvariant())).ToArray();
         Healthy=valid.Length>0&&Confirmed.Length==valid.Length;
         prior=valid.Where(r=>r.Confidence>=.75).Select(r=>r.Name.ToUpperInvariant()).ToHashSet();
     }
-    public bool Threat=>Confirmed.Any(r=>r.Standing!="Friendly");
+    public bool Threat=>hostileFrames>=2;
+}
+
+public static class CaptureArea
+{
+    public static double[] Normalize(double x1,double y1,double x2,double y2,double width,double height)
+    {
+        x1=Math.Clamp(x1,0,width);x2=Math.Clamp(x2,0,width);y1=Math.Clamp(y1,0,height);y2=Math.Clamp(y2,0,height);
+        return [Math.Min(x1,x2)/width,Math.Min(y1,y2)/height,Math.Abs(x1-x2)/width,Math.Abs(y1-y2)/height];
+    }
 }
