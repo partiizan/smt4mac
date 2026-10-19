@@ -23,8 +23,8 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
     let rows=(request.results ?? []).compactMap {observation -> [String:Any]? in
         guard let candidate=observation.topCandidates(1).first else{return nil}
         let box=observation.boundingBox
-        // Sample saturated pixels immediately left of a name. Unknown is never assumed friendly.
-        let left=max(0,Int(box.minX*Double(img.width))-32),right=max(left,Int(box.minX*Double(img.width))-1)
+        // Inspect the icon area left of a name. Reject a broad blue selection background as ambiguous.
+        let left=0,right=min(img.width-1,max(32,Int(box.minX*Double(img.width))-1))
         let top=max(0,Int((1-box.maxY)*Double(img.height))),bottom=min(img.height-1,Int((1-box.minY)*Double(img.height)))
         var friendly=0,other=0
         if right>left && bottom>=top {for y in top...bottom {for x in left...right {
@@ -36,7 +36,8 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
                 }
             }
         }}}
-        let style=friendly>=4 && other<4 ? "Friendly" : "Hostile"
+        let samples=max(1,(right-left+1)*(bottom-top+1))
+        let style=friendly>=4 && other<4 && Double(friendly)/Double(samples)<0.75 ? "Friendly" : "Hostile"
         return ["name":candidate.string,"confidence":candidate.confidence,"standing":style]
     }
     return rows
