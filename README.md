@@ -112,3 +112,5 @@ Service references:
 ## Project provenance
 
 This standalone repository was extracted from the native mac-local-v0.8 branch of partiizan/adm-dashboard at commit 300c1d4986b58622ffd222e1fe904c52c2950087. The ADM Dashboard website remains a separate project. Upstream SMT attribution and its MIT license are retained.
+
+Constellation assignments in `data/constellations.json` were imported from Slazanger/SMT `EVEData/data/Systems.dat` on 2026-10-19; see UPSTREAM-LICENSE.txt. They cover all 5,202 bundled systems.

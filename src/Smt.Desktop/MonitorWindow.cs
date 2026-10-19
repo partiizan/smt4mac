@@ -71,7 +71,7 @@ public sealed class MonitorWindow:Window
     private async Task Preview()
     {
         if(windows.SelectedItem is not CaptureWindow w){ShowError("Choose an EVE window first.");return;}
-        try{var d=await NativeCapture.Call(new{action="capture",id=w.Id,preview=true});SetImage(preview,d);previewId=w.Id;localArea=null;systemArea=null;selection.Width=0;selection.Height=0;status.Text="Drag around Local names plus standing icons.";}catch(Exception e){ShowError(e.Message);}
+        try{var d=await NativeCapture.Call(new{action="capture",id=w.Id,preview=true,scan=false});SetImage(preview,d);previewId=w.Id;localArea=null;systemArea=null;selection.Width=0;selection.Height=0;status.Text="Drag around Local names plus standing icons.";}catch(Exception e){ShowError(e.Message);}
     }
     private void Start(){if(windows.SelectedItem is not CaptureWindow w||w.Id!=previewId||localArea==null){ShowError("Load this window's preview and select a Local area first.");return;}owner.ConfigureMonitor(Prefs());owner.StartMonitor(w.Id,localArea,systemArea);status.Text="Monitoring selected window. Leave Local visible and reselect the area if its layout changes.";}
     private static void SetImage(Image image,JsonElement d){if(d.TryGetProperty("png",out var png)){using var stream=new MemoryStream(Convert.FromBase64String(png.GetString()!));var old=image.Source as IDisposable;image.Source=new Bitmap(stream);old?.Dispose();}}

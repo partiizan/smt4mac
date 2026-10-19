@@ -158,6 +158,7 @@ var constellation=universe.Systems[other].Constellation;
 Check(AlertEngine.Evaluate(universe,[nearby],opts with{Coverage="Constellation",Target=constellation},clock,true,false,true).Level=="Yellow","Pinned constellation threat is yellow");
 Check(AlertEngine.Evaluate(universe,[nearby with{Message=other+" clear?"}],opts,clock,true,false,true).Level=="Green","Questions do not create threats");
 Check(AlertEngine.Evaluate(universe,[report,report with{Time=clock.AddSeconds(1),Message="clear",Clear=true}],opts,clock.AddSeconds(2),true,false,true).Level=="Green","Later clear removes threat");
+Check(AlertEngine.Evaluate(universe,[report,report with{Time=clock.AddSeconds(1),Message="clear?",Clear=true}],opts,clock.AddSeconds(2),true,false,true).Level=="Red","A question cannot clear an existing threat");
 var tracker=new LocalTracker();var row=new LocalRow("PlayerX",.95,"Unknown");tracker.Observe([row]);Check(!tracker.Healthy&&!tracker.Threat,"First OCR observation needs confirmation");tracker.Observe([row]);Check(tracker.Healthy&&tracker.Threat,"Repeated unknown row alerts conservatively");tracker.Reset();Check(!tracker.Healthy&&!tracker.Threat,"Reset invalidates old capture");
 Console.WriteLine($"{passed} checks passed.");
 

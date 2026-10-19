@@ -103,7 +103,7 @@ public partial class MainWindow : Window
         ApplyAdm();
         InitializeOperations();
         InitializeMonitoring();
-        Get<ListBox>("IntelList").ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<IntelItem>((item,_)=>IntelView(item!.Report,Get<TextBox>("IntelSearch").Text?.Trim()??""));
+        Get<ListBox>("IntelList").ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<IntelItem>((item,_)=>item==null?new TextBlock():IntelView(item.Report,Get<TextBox>("IntelSearch").Text?.Trim()??""));
         Closed+=(_,_)=> { timer.Stop(); closing.Cancel(); sovereignty.Dispose(); StopOperations(); Save(); };
         UpdateWatchState(); SetStatus("Ready · Static gate map with public ESI sovereignty data.");
     }

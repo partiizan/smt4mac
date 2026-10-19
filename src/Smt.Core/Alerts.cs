@@ -13,7 +13,7 @@ public static class AlertEngine
         var current=u.Systems.GetValueOrDefault(o.System.Trim());
         var recent=reports.Where(r=>r.Time<=now && r.Time>=now.AddMinutes(-o.Minutes)).OrderBy(r=>r.Time);
         var latest=new Dictionary<string,IntelReport>(StringComparer.OrdinalIgnoreCase);
-        foreach(var r in recent)if(r.Clear||IsThreat(r))foreach(var s in r.Systems)latest[s]=r;
+        foreach(var r in recent)if((r.Clear&&!r.Message.Contains('?'))||IsThreat(r))foreach(var s in r.Systems)latest[s]=r;
         var threats=latest.Where(x=>IsThreat(x.Value)).ToArray();
         string Detail(KeyValuePair<string,IntelReport> r)=>$"{r.Key} · {r.Value.Time:HH:mm:ss} UTC · {r.Value.Message}";
         if(current!=null && threats.FirstOrDefault(x=>x.Key==current.Name) is var here && here.Value!=null)return new("Red","RED ALERT",Detail(here));
