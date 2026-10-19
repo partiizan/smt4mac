@@ -103,7 +103,8 @@ public partial class MainWindow
         if(Get<Border>("TrafficLight")==null)return;
         var now=DateTimeOffset.UtcNow;
         bool fresh=monitorRunning&&now-lastCapture<TimeSpan.FromSeconds(5);
-        if(!fresh && localPreview!=null)ClearLocalPreview();
+        if(!fresh){if(localPreview!=null)ClearLocalPreview();localTracker.Reset();}
+        Get<TextBlock>("PreviewPlaceholder").Text=monitorRunning?"Waiting for a fresh capture…":"Start Local monitoring to see your selected area";
         var location=systemArea!=null&&monitorRunning?screenSystem??"":monitorPrefs.System;
         var panels=AlertEngine.Panels(universe,reports,location,monitorPrefs.Minutes,now,fresh&&localTracker.Healthy,monitorRunning&&latchedThreat,logsHealthy);
         var local=panels.Local;

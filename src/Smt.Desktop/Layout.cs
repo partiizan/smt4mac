@@ -31,7 +31,26 @@ public partial class MainWindow
         divider.PointerReleased+=(_,e)=>{if(dragY==null)return;dragY=null;e.Pointer.Capture(null);settings=settings with{WormholeHeight=height};Save();};
         divider.PointerCaptureLost+=(_,_)=>dragY=null;
         Get<GridSplitter>("IntelDivider").PointerReleased+=(_,_)=>{settings=settings with{IntelWidth=Get<Border>("IntelPanel").Bounds.Width,MonitorWidth=Get<Border>("MonitorPanel").Bounds.Width};Save();};
-        Get<GridSplitter>("MonitorDivider").PointerReleased+=(_,_)=>{settings=settings with{IntelWidth=Get<Border>("IntelPanel").Bounds.Width,MonitorWidth=Get<Border>("MonitorPanel").Bounds.Width};Save();};
+        var monitorDivider=Get<Border>("MonitorDivider");
+        double? dragX=null;double startIntel=0,startMonitor=0;
+        monitorDivider.PointerPressed+=(_,e)=>
+        {
+            if(!e.GetCurrentPoint(monitorDivider).Properties.IsLeftButtonPressed)return;
+            dragX=e.GetPosition(grid).X;startIntel=Get<Border>("IntelPanel").Bounds.Width;startMonitor=Get<Border>("MonitorPanel").Bounds.Width;
+            e.Pointer.Capture(monitorDivider);e.Handled=true;
+        };
+        monitorDivider.PointerMoved+=(_,e)=>
+        {
+            if(dragX is not {} start)return;
+            var delta=Math.Clamp(e.GetPosition(grid).X-start,Math.Max(240-startIntel,startMonitor-480),Math.Min(480-startIntel,startMonitor-260));
+            grid.ColumnDefinitions[2].Width=new GridLength(startIntel+delta);grid.ColumnDefinitions[4].Width=new GridLength(startMonitor-delta);
+        };
+        monitorDivider.PointerReleased+=(_,e)=>
+        {
+            if(dragX==null)return;dragX=null;e.Pointer.Capture(null);
+            settings=settings with{IntelWidth=Get<Border>("IntelPanel").Bounds.Width,MonitorWidth=Get<Border>("MonitorPanel").Bounds.Width};Save();
+        };
+        monitorDivider.PointerCaptureLost+=(_,_)=>dragX=null;
         Closing+=(_,_)=>{settings=settings with{IntelWidth=Get<Border>("IntelPanel").Bounds.Width,MonitorWidth=Get<Border>("MonitorPanel").Bounds.Width,WormholeHeight=height};Save();};
         grid.SizeChanged+=(_,_)=>
         {

@@ -67,7 +67,7 @@ try
  var point=intelDivider.TranslatePoint(new Point(4,100),window)!.Value;
  window.MouseDown(point,Avalonia.Input.MouseButton.Left);window.MouseMove(point-new Vector(40,0));window.MouseUp(point-new Vector(40,0),Avalonia.Input.MouseButton.Left);await Task.Delay(100);
  if(window.FindControl<Border>("IntelPanel")!.Bounds.Width<=intelBefore)throw new Exception("Intel divider failed");
- var monitorDivider=window.FindControl<GridSplitter>("MonitorDivider")!;
+ var monitorDivider=window.FindControl<Border>("MonitorDivider")!;
  var monitorBefore=window.FindControl<Border>("MonitorPanel")!.Bounds.Width;
  point=monitorDivider.TranslatePoint(new Point(4,100),window)!.Value;
  window.MouseDown(point,Avalonia.Input.MouseButton.Left);window.MouseMove(point-new Vector(25,0));window.MouseUp(point-new Vector(25,0),Avalonia.Input.MouseButton.Left);await Task.Delay(100);

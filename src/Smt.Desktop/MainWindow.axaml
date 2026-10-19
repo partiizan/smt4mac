@@ -76,7 +76,7 @@
      </StackPanel>
     </ScrollViewer>
    </Border>
-   <GridSplitter Name="MonitorDivider" Grid.Column="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="#243143"/>
+   <Border Name="MonitorDivider" Grid.Column="3" Cursor="SizeWestEast" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="#243143"/>
    <GridSplitter Name="IntelDivider" Grid.Column="1" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="#243143"/>
    <Button Name="ToggleWormholes" Grid.Row="2" Grid.ColumnSpan="5" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Content="▼ Wormholes &amp; live feeds · click to minimize"/>
    <Border Name="WormholeDivider" Grid.ColumnSpan="5" Grid.Row="1" Cursor="SizeNorthSouth" HorizontalAlignment="Stretch" Background="#243143"/>
