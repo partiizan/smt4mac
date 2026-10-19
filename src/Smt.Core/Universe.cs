@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Smt.Core;
 
-public sealed record StarSystem(long Id, string Name, string Region, double Security, double X, double Y, bool Station, string[] Jumps, double? ActualX = null, double? ActualY = null, double? ActualZ = null);
+public sealed record StarSystem(long Id, string Name, string Region, double Security, double X, double Y, bool Station, string[] Jumps, double? ActualX = null, double? ActualY = null, double? ActualZ = null, string Constellation = "");
 public sealed record MapNode(string Name, double X, double Y, bool Outside);
 public sealed record Region(string Name, string Faction, MapNode[] Nodes)
 {
@@ -19,6 +19,12 @@ public sealed class Universe
     {
         Data = JsonSerializer.Deserialize<UniverseData>(File.ReadAllText(filename), new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidDataException("The universe snapshot could not be read.");
+        var constellationPath=Path.Combine(Path.GetDirectoryName(filename)!,"constellations.json");
+        if(File.Exists(constellationPath))
+        {
+            var names=JsonSerializer.Deserialize<Dictionary<string,string>>(File.ReadAllText(constellationPath))??[];
+            Data=Data with{Systems=Data.Systems.Select(s=>s with{Constellation=names.GetValueOrDefault(s.Name,"")}).ToArray()};
+        }
         Systems = Data.Systems.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
         ById = Data.Systems.ToDictionary(s => s.Id);
     }

@@ -35,7 +35,7 @@ public sealed class IntelParser
         if (match.Success && !DateTimeOffset.TryParseExact(match.Groups["time"].Value, "yyyy.MM.dd HH:mm:ss", CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out time)) return null;
         var systems = names.Matches(message).Select(m => universe.Systems[m.Value].Name).Distinct().ToArray();
-        if (systems.Length == 0) return null;
+        if (systems.Length == 0 && allowPlainText) return null;
         var clear = Regex.IsMatch(message, @"\b(clear|clr)\b", RegexOptions.IgnoreCase) &&
             !Regex.IsMatch(message, @"\b(not|no|never|isn't|isnt|hostile|hostiles|neut|neuts|red|reds)\b", RegexOptions.IgnoreCase);
         return new(time, speaker, message, systems, clear, source);

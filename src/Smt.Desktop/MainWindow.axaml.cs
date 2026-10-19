@@ -33,7 +33,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(2) };
     private Settings settings;
     private LogTailer? tailer;
-    private bool polling, paused, demo;
+    private bool polling;
     private DateTimeOffset? lastLogRead, lastIntelMatch;
     private string lastReadSummary="No messages read yet.";
     private string? selected;
@@ -77,20 +77,15 @@ public partial class MainWindow : Window
         Get<Button>("AutoLogs").Click+=async (_,_)=>
         {
             settings=settings with {LogFolder=""};
-            if(demo) ToggleDemo();
             tailer=new LogTailer(LogFolderLocator.Resolve());reports.Clear();RefreshIntel();
-            paused=false;Get<Button>("ToggleWatch").Content="Pause";Save();UpdateWatchState();await PollLogs();
+            Save();UpdateWatchState();await PollLogs();
         };
-        Get<Button>("ToggleWatch").Click+=(_,_)=> { paused=!paused; Get<Button>("ToggleWatch").Content=paused?"Resume":"Pause"; UpdateWatchState(); };
-        Get<Button>("DemoButton").Click+=(_,_)=>ToggleDemo();
         Get<TextBox>("ChannelFilter").TextChanged+=(_,_)=>
         {
             settings=settings with {ChannelFilter=Get<TextBox>("ChannelFilter").Text ?? ""};
-            if(!demo) { reports.Clear(); if(tailer!=null) tailer=new LogTailer(tailer.Folder); RefreshIntel(); }
+            reports.Clear(); if(tailer!=null) tailer=new LogTailer(tailer.Folder); RefreshIntel();
             Save();
         };
-        Get<Button>("AddIntel").Click+=(_,_)=>AddManual();
-        Get<TextBox>("ManualIntel").KeyDown+=(_,e)=> { if(e.Key==Avalonia.Input.Key.Enter) AddManual(); };
         WireSystemActivation(Get<ListBox>("IntelList"),item=>(item as IntelItem)?.Report.Systems.FirstOrDefault());
         Get<CheckBox>("ShowAdm").IsCheckedChanged+=(_,_)=> { Map.ShowAdm=Get<CheckBox>("ShowAdm").IsChecked==true; Map.InvalidateVisual(); };
         Get<ComboBox>("AdmFilterPicker").ItemsSource=new[]{"ADM highlight: Off","ADM below 5.0","ADM below 4.0"};
@@ -107,6 +102,8 @@ public partial class MainWindow : Window
         timer.Tick+=async (_,_)=> { await PollLogs(); await UpdateAdmAsync(); }; timer.Start();
         ApplyAdm();
         InitializeOperations();
+        InitializeMonitoring();
+        Get<ListBox>("IntelList").ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<IntelItem>((item,_)=>IntelView(item!.Report,Get<TextBox>("IntelSearch").Text?.Trim()??""));
         Closed+=(_,_)=> { timer.Stop(); closing.Cancel(); sovereignty.Dispose(); StopOperations(); Save(); };
         UpdateWatchState(); SetStatus("Ready · Static gate map with public ESI sovereignty data.");
     }
@@ -198,7 +195,6 @@ public partial class MainWindow : Window
             var path=folders.FirstOrDefault()?.TryGetLocalPath(); if(path==null) return;
             foreach(var leaf in new[]{"chatlogs","Chatlogs","ChatLogs"}) if(Directory.Exists(Path.Combine(path,leaf))) { path=Path.Combine(path,leaf); break; }
             settings=settings with {LogFolder=path}; tailer=new LogTailer(path); reports.Clear();
-            if(demo) ToggleDemo(); paused=false; Get<Button>("ToggleWatch").Content="Pause";
             Save(); UpdateWatchState(); await PollLogs();
         }
         catch(Exception e) { SetStatus("Could not open folder: "+e.Message); }
@@ -214,11 +210,11 @@ public partial class MainWindow : Window
         var path=tailer?.Folder??LogFolderLocator.Resolve(settings.LogFolder);
         var displayPath=DisplayLogPath(path);
         ToolTip.SetTip(Get<TextBlock>("IntelState"),path);
-        Get<TextBlock>("IntelState").Text=demo?"Demo mode · live monitoring suspended":paused?"Paused · reports still expire":$"{mode} · scanning every 2 seconds\n{displayPath}";
+        Get<TextBlock>("IntelState").Text=$"{mode} · scanning every 2 seconds\n{displayPath}";
     }
     private async Task PollLogs()
     {
-        if(polling || paused || demo) { Map.InvalidateVisual(); return; }
+        if(polling) { Map.InvalidateVisual(); return; }
         var resolved=LogFolderLocator.Resolve(settings.LogFolder);
         if(tailer==null || tailer.Folder!=resolved) tailer=new LogTailer(resolved);
         var current=tailer; var filter=settings.ChannelFilter; polling=true;
@@ -230,10 +226,11 @@ public partial class MainWindow : Window
                 var filtered=lines.Where(x=>string.IsNullOrWhiteSpace(filter)||x.Source.Contains(filter,StringComparison.OrdinalIgnoreCase)).ToArray();
                 var matches=filtered.Select(x=>parser.Parse(x.Line,x.Source,DateTimeOffset.UtcNow)).Where(r=>r!=null).Cast<IntelReport>().ToArray();
                 var now=DateTimeOffset.UtcNow;
-                var recent=matches.Where(r=>r.Time>=now.AddMinutes(-15) && r.Time<=now.AddMinutes(1)).ToArray();
+                var recent=matches.Where(r=>r.Time>=now.AddHours(-24) && r.Time<=now.AddMinutes(1)).ToArray();
                 return (LineCount:lines.Count,Filtered:filtered.Length,Matches:matches.Length,Recent:recent);
             });
-            if(current!=tailer || demo || paused || closing.IsCancellationRequested) return;
+            if(current!=tailer || closing.IsCancellationRequested) return;
+            logsHealthy=current.EligibleFiles>0 && current.ReadErrors.Count==0;
             foreach(var r in batch.Recent) AddReport(r);
             if(current.BytesRead>0)lastLogRead=DateTimeOffset.UtcNow;
             if(batch.Recent.Length>0)lastIntelMatch=DateTimeOffset.UtcNow;
@@ -243,53 +240,31 @@ public partial class MainWindow : Window
             var errors=current.ReadErrors.Count>0?$"\n{current.ReadErrors.Count} file(s) could not be read; retrying. Check file access.":"";
             Get<TextBlock>("IntelDiagnostics").Text=overview+errors+"\n"+lastReadSummary+
                 "\nLast data read: "+(lastLogRead is {} read?$"{read:HH:mm:ss} UTC":"never")+" · Last report: "+(lastIntelMatch is {} match?$"{match:HH:mm:ss} UTC":"none");
-            ToolTip.SetTip(Get<TextBlock>("IntelDiagnostics"),current.ReadErrors.Count>0?string.Join("\n",current.ReadErrors):"Complete lines are parsed; only reports from the last 15 minutes are imported. Counts include headers and messages without system names.");
+            ToolTip.SetTip(Get<TextBlock>("IntelDiagnostics"),current.ReadErrors.Count>0?string.Join("\n",current.ReadErrors):"Complete lines are parsed; only reports from the last 24 hours are imported. Counts include headers and messages without system names.");
             SetStatus($"Intel checked {DateTime.Now:HH:mm:ss} · {batch.Recent.Length} recent matching reports this scan"+errors.Replace("\n"," "));
 
         }
         catch(DirectoryNotFoundException)
-        { Get<TextBlock>("IntelDiagnostics").Text="Folder not found. Waiting for EVE to create it."; Get<TextBlock>("IntelState").Text="Waiting for EVE chat logs · checking every 2 seconds\n"+DisplayLogPath(current.Folder); SetStatus("Open EVE with chat logging enabled. Use Change folder only if your logs are stored elsewhere."); }
+        { logsHealthy=false; Get<TextBlock>("IntelDiagnostics").Text="Folder not found. Waiting for EVE to create it."; Get<TextBlock>("IntelState").Text="Waiting for EVE chat logs · checking every 2 seconds\n"+DisplayLogPath(current.Folder); SetStatus("Open EVE with chat logging enabled. Use Change folder only if your logs are stored elsewhere."); }
         catch(UnauthorizedAccessException)
-        { Get<TextBlock>("IntelDiagnostics").Text="Cannot read the folder: Documents permission is needed."; Get<TextBlock>("IntelState").Text="Documents access needed · retrying\n"+DisplayLogPath(current.Folder); SetStatus("Allow SMT Mac Beta to read Documents when macOS asks, or grant Documents access in System Settings → Privacy & Security → Files and Folders."); }
+        { logsHealthy=false; Get<TextBlock>("IntelDiagnostics").Text="Cannot read the folder: Documents permission is needed."; Get<TextBlock>("IntelState").Text="Documents access needed · retrying\n"+DisplayLogPath(current.Folder); SetStatus("Allow SMT4Mac to read Documents when macOS asks, or grant Documents access in System Settings → Privacy & Security → Files and Folders."); }
         catch(Exception e) when(e is IOException or System.Text.RegularExpressions.RegexMatchTimeoutException)
-        { Get<TextBlock>("IntelDiagnostics").Text="Read failed: "+e.Message; Get<TextBlock>("IntelState").Text="Log access error · retrying\n"+DisplayLogPath(current.Folder); SetStatus(e.Message); }
-        finally { polling=false; }
+        { logsHealthy=false; Get<TextBlock>("IntelDiagnostics").Text="Read failed: "+e.Message; Get<TextBlock>("IntelState").Text="Log access error · retrying\n"+DisplayLogPath(current.Folder); SetStatus(e.Message); }
+        finally { polling=false; UpdateAlert(); }
     }
     private void AddReport(IntelReport report)
     {
         if(reports.Any(r=>r.Time==report.Time && r.Speaker==report.Speaker && r.Message==report.Message && r.Source==report.Source)) return;
-        reports.Add(report); if(reports.Count>500) reports.RemoveRange(0,reports.Count-500);
+        reports.Add(report); if(reports.Count>5000) reports.RemoveRange(0,reports.Count-5000);
     }
     private void RefreshIntel()
     {
-        Get<ListBox>("IntelList").ItemsSource=reports.OrderByDescending(r=>r.Time).Take(100).Select(r=>new IntelItem(r)).ToArray();
-        Get<TextBlock>("IntelCount").Text=$"{reports.Count} REPORTS";
+        var query=Get<TextBox>("IntelSearch").Text?.Trim()??"";
+        var matching=reports.Where(r=>query.Length==0 || (r.Message+" "+r.Speaker+" "+r.Source).Contains(query,StringComparison.OrdinalIgnoreCase)).OrderByDescending(r=>r.Time).Select(r=>new IntelItem(r)).ToArray();
+        Get<ListBox>("IntelList").ItemsSource=matching;
+        Get<TextBlock>("IntelCount").Text=$"{reports.Count} REPORTS"+(query.Length>0?$" · {matching.Length} MATCHES":"");
         var latest=new Dictionary<string,IntelReport>();
         foreach(var r in reports.OrderBy(r=>r.Time)) foreach(var name in r.Systems) latest[name]=r;
         Map.Reports=latest; Map.InvalidateVisual();
-    }
-    private void AddManual()
-    {
-        var text=Get<TextBox>("ManualIntel").Text ?? "";
-        var report=parser.Parse(text,demo?"Demo / manual":"Manual",DateTimeOffset.UtcNow,true);
-        if(report==null) { SetStatus("No exact system name found in the report."); return; }
-        AddReport(report); RefreshIntel(); Get<TextBox>("ManualIntel").Text="";
-    }
-    public void ToggleDemo()
-    {
-        demo=!demo; reports.Clear();
-        Get<Border>("DemoBanner").IsVisible=demo; Get<Button>("DemoButton").Content=demo?"Exit demo":"Try demo";
-        if(demo)
-        {
-            Get<ComboBox>("RegionPicker").SelectedItem=universe.Data.Regions.First(r=>r.Name=="Delve");
-            var now=DateTimeOffset.UtcNow;
-            foreach(var (msg,age) in new[]{("1DQ1-A 3 neutrals on the gate",1),("T5ZI-S clear",3),("N-8YET interceptor moving towards 1DQ1-A",5)})
-            {
-                var r=parser.Parse(msg,"DEMO",now.AddMinutes(-age),true); if(r!=null) AddReport(r with {Speaker="Demo scout"});
-            }
-            Get<AutoCompleteBox>("FromBox").Text="1DQ1-A"; Get<AutoCompleteBox>("ToBox").Text="N-8YET"; Get<CheckBox>("HighSecOnly").IsChecked=false; Plan();
-        }
-        else if(tailer!=null) tailer=new LogTailer(tailer.Folder);
-        RefreshIntel(); UpdateWatchState(); SetStatus(demo?"Synthetic reports for demonstration only. No live intel is mixed into this view.":"Demo ended. Automatic live monitoring resumes.");
     }
 }

@@ -1,7 +1,7 @@
 name: Build and release SMT4Mac
 on:
   push:
-    branches: [main, ui-v0.9]
+    branches: [main, release-v0.10]
   workflow_dispatch:
 permissions:
   contents: write
@@ -25,55 +25,36 @@ jobs:
       - name: Build and verify Apple Silicon app
         run: |
           bash packaging/build-mac.sh osx-arm64
-          codesign --verify --deep --strict --verbose=2 'dist/osx-arm64/SMT Mac Beta.app'
-          file 'dist/osx-arm64/SMT Mac Beta.app/Contents/MacOS/SmtMac'
-          /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' 'dist/osx-arm64/SMT Mac Beta.app/Contents/Info.plist'
+          codesign --verify --deep --strict --verbose=2 'dist/osx-arm64/SMT4Mac.app'
+          file 'dist/osx-arm64/SMT4Mac.app/Contents/MacOS/SMT4Mac'
+          /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' 'dist/osx-arm64/SMT4Mac.app/Contents/Info.plist'
       - name: Package app and source
         run: |
-          mkdir -p /tmp/SMT-Mac-Beta-0.9/source
-          cp -R 'dist/osx-arm64/SMT Mac Beta.app' /tmp/SMT-Mac-Beta-0.9/
-          cp README.md LICENSE UPSTREAM-LICENSE.txt ansiblex-template.csv /tmp/SMT-Mac-Beta-0.9/
-          git archive HEAD | tar -x -C /tmp/SMT-Mac-Beta-0.9/source
-          ditto -c -k --sequesterRsrc --keepParent /tmp/SMT-Mac-Beta-0.9 /tmp/SMT-Mac-Beta-0.9-AppleSilicon.zip
+          mkdir -p /tmp/SMT4Mac-0.10/source
+          cp -R 'dist/osx-arm64/SMT4Mac.app' /tmp/SMT4Mac-0.10/
+          cp README.md LICENSE UPSTREAM-LICENSE.txt ansiblex-template.csv /tmp/SMT4Mac-0.10/
+          git archive HEAD | tar -x -C /tmp/SMT4Mac-0.10/source
+          ditto -c -k --sequesterRsrc --keepParent /tmp/SMT4Mac-0.10 /tmp/SMT4Mac-0.10-AppleSilicon.zip
           cd /tmp
-          shasum -a 256 SMT-Mac-Beta-0.9-AppleSilicon.zip > SHA256SUMS.txt
+          shasum -a 256 SMT4Mac-0.10-AppleSilicon.zip > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: SMT-Mac-Beta-0.9-AppleSilicon
-          path: /tmp/SMT-Mac-Beta-0.9-AppleSilicon.zip
+          name: SMT4Mac-0.10-AppleSilicon
+          path: /tmp/SMT4Mac-0.10-AppleSilicon.zip
           retention-days: 30
       - uses: actions/upload-artifact@v4
         with:
-          name: SMT-v09-previews
+          name: SMT-v010-previews
           path: screenshots/*.png
           retention-days: 7
-      - name: Publish v0.9 beta release
+      - name: Publish v0.10 beta release
         if: github.ref == 'refs/heads/main' 
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          if gh release view v0.9.0 >/dev/null 2>&1; then
-            echo "v0.9.0 already published; preserving its existing assets."
+          if gh release view v0.10.0 >/dev/null 2>&1; then
+            echo "v0.10.0 already published; preserving its existing assets."
           else
-            cat > /tmp/release-notes.md <<'NOTES'
-          Native Apple Silicon macOS app, with source published separately from the ADM Dashboard website.
-
-          - Route endpoint autocomplete, including p-z → P-ZMZV.
-          - Automatic chat-log ingestion using the current user's Documents folder.
-          - ADM highlighting below 4.0 and 5.0.
-          - Intel and Live panels are visible together with an adjustable divider.
-          - Searchable Thera/Turnur connection table with hub filters, region/security, both signatures, ship limits, expiry, map and copy actions.
-          - Public kill feeds and storms; hourly activity layers removed.
-          - Gate, Ansiblex and capital jump planning.
-          - Removed Pilots/SSO and localhost callback functionality.
-          - Region navigation protected from background refreshes.
-
-          **Download SMT-Mac-Beta-0.9-AppleSilicon.zip below.** It includes the self-contained app and corresponding source. No .NET installation is required.
-
-          Quit the previous app, unzip and move SMT Mac Beta.app into Applications. This beta is ad-hoc signed, not Apple-notarized; macOS may require Privacy & Security → Open Anyway. Allow Documents access for automatic EVE chat-log ingestion.
-
-          Tested on an Apple Silicon macOS runner: core and operations checks and desktop integration checks covering log ingestion, autocomplete, ADM settings, region selection by mouse and keyboard, and wormhole filtering and map actions at normal and minimum window sizes.
-          NOTES
-            gh release create v0.9.0 /tmp/SMT-Mac-Beta-0.9-AppleSilicon.zip /tmp/SHA256SUMS.txt --target "$(git rev-parse HEAD)" --title "SMT4Mac v0.9 — Apple Silicon beta" --prerelease --notes-file /tmp/release-notes.md
+            gh release create v0.10.0 /tmp/SMT4Mac-0.10-AppleSilicon.zip /tmp/SHA256SUMS.txt --target "$(git rev-parse HEAD)" --title "SMT4Mac v0.10 — Apple Silicon beta" --prerelease --notes-file RELEASE-v0.10.md
           fi

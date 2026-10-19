@@ -20,7 +20,7 @@ string Stamp(string s)=>$"[ {now:yyyy.MM.dd HH:mm:ss} ] Scout > {s}";
 Check(parser.Parse(Stamp("1dq1-a three neut, T5ZI-S clear"),"intel",now)?.Systems.Length==2,"Intel matches canonical system names case-insensitively");
 Check(parser.Parse(Stamp("Jita clear"),"intel",now)?.Clear==true,"Clear report recognized");
 Check(parser.Parse(Stamp("Jita not clear"),"intel",now)?.Clear==false,"Negated clear is not clear");
-Check(parser.Parse(Stamp("JitaX"),"intel",now)==null,"Partial system names do not match");
+Check(parser.Parse(Stamp("JitaX"),"intel",now)?.Systems.Length==0,"Partial system names do not match");
 Check(parser.Parse("Channel Name: Jita","header",now)==null,"Log headers do not create reports");
 Check(parser.Parse(Stamp("New Caldari clear"),"intel",now)?.Systems.Contains("New Caldari")==true,"Multiword system names match");
 Check(parser.Parse("Jita a hostile reported","manual",now,true)!=null,"Manual intel accepted explicitly");
@@ -143,6 +143,22 @@ using(var esi=new SovereigntyClient(Path.Combine(admDir,"sov.json"),fake,()=>tic
 using(var cached=new SovereigntyClient(Path.Combine(admDir,"sov.json"),clock:()=>tick))
  Check(cached.Systems[1].Adm==4.1 && cached.FromDisk && cached.IsStale,"Restart loads cache marked unverified");
 Directory.Delete(admDir,true);
+
+var clock=DateTimeOffset.UtcNow;
+var report=new IntelReport(clock,"Scout","P-ZMZV 2 hostiles",["P-ZMZV"],false,"Intel");
+var opts=new AlertOptions("P-ZMZV");
+Check(AlertEngine.Evaluate(universe,[report],opts,clock,true,false,true).Level=="Red","Current system threat is red");
+Check(AlertEngine.Evaluate(universe,[],opts,clock,false,false,true).Level=="Gray","No screen capture never shows green");
+Check(AlertEngine.Evaluate(universe,[],opts,clock,true,false,true).Level=="Green","Healthy empty threat feed is green");
+Check(AlertEngine.Evaluate(universe,[report with{Time=clock.AddMinutes(-6)}],opts,clock,true,false,true).Level=="Green","Expired reports do not alert");
+var other=universe.Systems["P-ZMZV"].Jumps[0];
+var nearby=report with{Systems=[other],Message=other+" hostile"};
+Check(AlertEngine.Evaluate(universe,[nearby],opts,clock,true,false,true).Level=="Yellow","Nearby report is yellow");
+var constellation=universe.Systems[other].Constellation;
+Check(AlertEngine.Evaluate(universe,[nearby],opts with{Coverage="Constellation",Target=constellation},clock,true,false,true).Level=="Yellow","Pinned constellation threat is yellow");
+Check(AlertEngine.Evaluate(universe,[nearby with{Message=other+" clear?"}],opts,clock,true,false,true).Level=="Green","Questions do not create threats");
+Check(AlertEngine.Evaluate(universe,[report,report with{Time=clock.AddSeconds(1),Message="clear",Clear=true}],opts,clock.AddSeconds(2),true,false,true).Level=="Green","Later clear removes threat");
+var tracker=new LocalTracker();var row=new LocalRow("PlayerX",.95,"Unknown");tracker.Observe([row]);Check(!tracker.Healthy&&!tracker.Threat,"First OCR observation needs confirmation");tracker.Observe([row]);Check(tracker.Healthy&&tracker.Threat,"Repeated unknown row alerts conservatively");tracker.Reset();Check(!tracker.Healthy&&!tracker.Threat,"Reset invalidates old capture");
 Console.WriteLine($"{passed} checks passed.");
 
 sealed class FakeEsi(string json):HttpMessageHandler

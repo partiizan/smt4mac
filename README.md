@@ -1,3 +1,7 @@
+# SMT4Mac v0.10
+
+See [v0.10 release and monitoring setup](RELEASE-v0.10.md). Native screen monitoring requires macOS 14+. ESI character login remains deferred.
+
 # SMT4Mac — Native macOS client
 
 A native macOS map, intel and route-planning beta. Includes the self-contained `.app`; no Terminal launcher or .NET installation is required.
