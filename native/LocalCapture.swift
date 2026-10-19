@@ -155,11 +155,11 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
                 finish(["voices":speech.voices().map{speech.describe($0)},"automaticVoiceId":speech.resolve("")?.identifier ?? ""]);return
             }
             if args["action"] as? String == "speechcheck" {
-                let utterance=speech.utterance(args["message"] as? String ?? "",(args["volume"] as? Float) ?? 0.7,args["voiceIdentifier"] as? String ?? "")
+                let utterance=speech.utterance(args["message"] as? String ?? "",(args["volume"] as? NSNumber)?.floatValue ?? 0.7,args["voiceIdentifier"] as? String ?? "")
                 finish(["voiceIdentifier":utterance.voice?.identifier ?? "","volume":utterance.volume,"message":utterance.speechString]);return
             }
             if args["action"] as? String == "alert" {
-                if args["voice"] as? Bool == true {speech.enqueue(String((args["message"] as? String ?? "Alert").prefix(240)),(args["volume"] as? Float) ?? 0.7,args["voiceIdentifier"] as? String ?? "")}
+                if args["voice"] as? Bool == true {speech.enqueue(String((args["message"] as? String ?? "Alert").prefix(240)),(args["volume"] as? NSNumber)?.floatValue ?? 0.7,args["voiceIdentifier"] as? String ?? "")}
                 if args["siren"] as? Bool == true {NSSound(named:"Sosumi")?.play()}
                 finish(["ok":true]);return
             }
