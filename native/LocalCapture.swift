@@ -30,7 +30,10 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
         // Inspect the icon area left of a name. Reject a broad blue selection background as ambiguous.
         let nameX=Int(box.minX*Double(img.width))
         let rowHeight=max(8,Int(box.height*Double(img.height)))
-        let left=max(0,nameX-rowHeight*2),right=min(img.width-1,nameX-2)
+        // Vision can merge a saturated badge into the word box. Extend color sampling
+        // by badge-sized geometry, but never count white name glyphs in that extension.
+        let nameEdge=nameX-2
+        let left=max(0,nameX-rowHeight*2),right=min(img.width-1,max(nameEdge,Int(Double(rowHeight)*1.5)))
         let top=max(0,Int((1-box.maxY)*Double(img.height))),bottom=min(img.height-1,Int((1-box.minY)*Double(img.height)))
         var friendly=0,other=0,neutral=0
         if right>left && bottom>=top {for y in top...bottom {for x in left...right {
@@ -39,7 +42,7 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
                 c.getHue(&hue,saturation:&saturation,brightness:&brightness,alpha:&alpha)
                 if saturation>0.35 && brightness>0.30 {
                     if hue>=0.25 && hue<=0.88 {friendly+=1} else {other+=1}
-                } else if saturation<=0.35 && brightness>0.35 {neutral+=1}
+                } else if x<=nameEdge && saturation<=0.35 && brightness>0.35 {neutral+=1}
             }
         }}}
         let samples=max(1,(right-left+1)*(bottom-top+1))
