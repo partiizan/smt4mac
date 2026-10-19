@@ -59,13 +59,11 @@ Existing region, ADM and log settings are retained. Public ADM, wormholes, storm
 
 Create a UTF-8 text/CSV file with **two exact system names per line**, separated by a comma. No header row. Lines starting with `#` are comments. Each row is a bidirectional link; importing replaces the saved network only after every row validates. See `ansiblex-template.csv`.
 
-Select **Gates + Ansiblex** after import. Access lists, operational status, fuel, ship restrictions and structure IDs are not checked. Only import links you know you can use. This beta does not discover private alliance networks automatically.
+Known links appear automatically as green connectors when both endpoints are on the displayed regional map. Access lists, operational status, fuel, ship restrictions and structure IDs are not checked. This beta does not discover private alliance networks automatically.
 
-## Capital planning
+## Layout
 
-Select **Capital jumps**, choose the hull class and JDC level, then supply start/end and optional waypoints/avoidance. The planner minimizes jump count; it does not optimize fuel, fatigue or total LY among equal-hop paths. Jump freighters and Black Ops may depart highsec, but all jump destinations must be eligible low/null systems. It uses the included upstream coordinate snapshot, independent of map layout coordinates.
-
-A geometrically reachable system is not a guaranteed usable cyno. Confirm cynos, jammers, beacons, docking, access, fuel, ship restrictions and fatigue in game. Pochven and restricted Jovian regions are excluded as destinations. Routes across regions are visible in the route list; the regional canvas shows legs whose endpoints are in view.
+Drag the vertical map/intel divider to change panel widths. The wormhole/live-feed drawer has a collapse/expand bar and a draggable top edge when expanded. Width, expanded height and collapsed state persist. Region and ADM selectors remain above the map; routing controls have been removed.
 
 ## Refresh and freshness
 
@@ -80,18 +78,18 @@ Rate-limit backoff and server cache expiry are respected. Feed status labels dis
 ## Suggested hands-on tests
 
 1. Launch with EVE running and send a system name in your intel channel. Confirm automatic appearance; restart the app and try a new chat session.
-2. Type `p-z` into each route endpoint, accept P-ZMZV, and verify suggestions narrow as you type.
+2. Resize both panel dividers, collapse/restore the drawer, and restart to confirm saved dimensions.
 3. Visit Period Basis, Delve and Querious while intel and public feeds refresh. Confirm the map stays in the selected region.
 4. Keep Intel and Live visible while reports arrive. Open a killmail from the current-region list.
 5. Select a Thera/Turnur connection and a storm. Compare signatures, expiry and locations with the public sources.
-6. Import a known Ansiblex CSV, compare gate-only and bridge-enabled routes, then test an avoided endpoint and a waypoint.
-7. Plan a known capital route for your hull/JDC. Confirm every leg is within range. Compare to in-game range and existing operational routes.
+6. Import a known Ansiblex CSV and check the green connectors. Clear the network and confirm they disappear.
+7. Monitor blue/green/purple members alongside your unbadged self row, with blank space below. Confirm no red alert; then verify a neutral arrival triggers red.
 
 For a bug report include macOS version, selected tab/region, exact steps, status message and a screenshot. 
 
 ## Known beta boundaries
 
-This is not complete Windows SMT parity. No in-game waypoint writes, standings overlays, private wormhole mapping, automatic bridge discovery, fuel/fatigue simulation, alert sounds, desktop overlay, auto-updater, Intel-Mac package or Developer ID notarization. Website-only alliance logos and font scaling were not carried into the v0.2 local baseline.
+This is not complete Windows SMT parity. No in-game waypoint writes, standings overlays, private wormhole mapping, automatic bridge discovery, fuel/fatigue simulation, desktop overlay, auto-updater, Intel-Mac package or Developer ID notarization. Website-only alliance logos and font scaling were not carried into the v0.2 local baseline.
 
 ## Build and sources
 

@@ -25,12 +25,17 @@ public partial class MainWindow
         divider.PointerMoved+=(_,e)=>
         {
             if(dragY is not {} start)return;
-            height=Math.Clamp(initialHeight+start-e.GetPosition(grid).Y,280,Math.Max(280,grid.Bounds.Height-396));Apply();
+            height=Math.Clamp(initialHeight+start-e.GetPosition(grid).Y,280,Math.Max(280,grid.Bounds.Height-446));Apply();
         };
         divider.PointerReleased+=(_,e)=>{if(dragY==null)return;dragY=null;e.Pointer.Capture(null);settings=settings with{WormholeHeight=height};Save();};
         divider.PointerCaptureLost+=(_,_)=>dragY=null;
         Get<GridSplitter>("IntelDivider").PointerReleased+=(_,_)=>{settings=settings with{IntelWidth=Get<Border>("IntelPanel").Bounds.Width};Save();};
         Closing+=(_,_)=>{settings=settings with{IntelWidth=Get<Border>("IntelPanel").Bounds.Width,WormholeHeight=height};Save();};
+        grid.SizeChanged+=(_,_)=>
+        {
+            if(grid.Bounds.Height<=0)return;
+            height=Math.Clamp(height,280,Math.Max(280,grid.Bounds.Height-446));Apply();
+        };
         Apply();
     }
 }

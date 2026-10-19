@@ -135,7 +135,7 @@ try
  Console.WriteLine("PASS: Wormhole region/hub filters, empty state, expired removal, signature orientation and map action");
  await Task.Delay(200);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v011-fixtures.png");
  window.Width=1280;window.Height=850;await Task.Delay(300);
- if(window.FindControl<Border>("LivePanel")!.Bounds.Height<280 || window.FindControl<ListBox>("IntelList")!.Bounds.Height<30 || connections.Bounds.Height<50)throw new Exception("Minimum-size panels unusable");
+ if(window.FindControl<Border>("LivePanel")!.Bounds.Height<280 || window.FindControl<ListBox>("IntelList")!.Bounds.Height<30 || connections.Bounds.Height<50)throw new Exception($"Minimum-size panels unusable: live={window.FindControl<Border>("LivePanel")!.Bounds.Height}, intel={window.FindControl<ListBox>("IntelList")!.Bounds.Height}, connections={connections.Bounds.Height}");
  using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v011-small.png");
  Console.WriteLine("PASS: Intel stream and connection table remain usable at 1280 x 850");
  window.Width=1560;window.Height=1000;

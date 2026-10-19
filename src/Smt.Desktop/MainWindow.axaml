@@ -13,7 +13,7 @@
   </Border>
   <Grid Name="Workspace" Grid.Row="1">
    <Grid.ColumnDefinitions><ColumnDefinition Width="*" MinWidth="600"/><ColumnDefinition Width="8"/><ColumnDefinition Width="340" MinWidth="280" MaxWidth="600"/></Grid.ColumnDefinitions>
-   <Grid.RowDefinitions><RowDefinition Height="*" MinHeight="350"/><RowDefinition Height="8"/><RowDefinition Height="38"/><RowDefinition Height="330" MinHeight="280"/></Grid.RowDefinitions>
+   <Grid.RowDefinitions><RowDefinition Height="*" MinHeight="400"/><RowDefinition Height="8"/><RowDefinition Height="38"/><RowDefinition Height="330" MinHeight="280"/></Grid.RowDefinitions>
    <Grid RowDefinitions="Auto,*,Auto">
     <StackPanel Margin="18,10" Spacing="6">
      <WrapPanel><ComboBox Name="RegionPicker" Width="190" Margin="0,0,8,4"/><ComboBox Name="AdmFilterPicker" Width="180" Margin="0,0,8,4"/>
