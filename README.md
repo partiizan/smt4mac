@@ -4,7 +4,7 @@ See [v0.11.0 fixes](RELEASE-v0.11.0.md) and [monitoring setup](RELEASE-v0.10.md)
 
 # SMT4Mac — Native macOS client
 
-A native macOS map, intel and route-planning beta. Includes the self-contained `.app`; no Terminal launcher or .NET installation is required.
+A native macOS map and intel-monitoring beta. Includes the self-contained `.app`; no Terminal launcher or .NET installation is required.
 
 ## Previous: v0.9
 
@@ -52,10 +52,8 @@ Existing region, ADM and log settings are retained. Public ADM, wormholes, storm
 | Kills | zKillboard R2Z2 feed from connection onward; current-region list; recent kill markers; double-click opens the killmail |
 | Wormholes | Public Eve-Scout Thera/Turnur connection lists, known-space endpoint markers, signatures, ship-size limit and expiry |
 | Storms | Eve-Scout Rescue storm centers/types; strong one-gate and weak three-gate areas |
-| Ansiblex | Import bidirectional links from a simple CSV; persist the network; purple map links; optional inclusion in shortest-hop routing |
-| Capitals | Hull class and Jump Drive Calibration; real 3D light-year distances; minimum-jump routes; per-leg and total LY; highsec destinations and Pochven excluded |
-| Route control | Ordered comma-separated waypoints and avoided systems; gate-only, gates+Ansiblex, or capital routing |
-| Existing features | Regional map, search, public sovereignty ADM/indexes, automatic local intel, channel filtering and manual reports |
+| Ansiblex | Import bidirectional links from a simple CSV; persist the network; green map links; access and online status unverified |
+| Existing features | Regional map, public sovereignty ADM/indexes, automatic local intel, channel filtering and keyword search |
 
 ## Ansiblex import
 

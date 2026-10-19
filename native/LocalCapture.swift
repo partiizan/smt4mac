@@ -63,12 +63,14 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
                 finish(["ok":true]);return
             }
             if args["action"] as? String == "selftest" {
-                let cases:[(String,NSColor?,String)]=[("green",.green,"Friendly"),("blue",.blue,"Friendly"),("purple",.purple,"Friendly"),("red",.red,"Hostile"),("grey",.gray,"Hostile"),("orange",.orange,"Hostile"),("yellow",.yellow,"Hostile"),("self-no-badge",nil,"Ignored"),("dark-blue",NSColor(srgbRed:11/255.0,green:32/255.0,blue:96/255.0,alpha:1),"Friendly"),("dark-green",NSColor(srgbRed:23/255.0,green:96/255.0,blue:25/255.0,alpha:1),"Friendly")]
+                let cases:[(String,NSColor?,String)]=[("green",.green,"Friendly"),("blue",.blue,"Friendly"),("purple",.purple,"Friendly"),("red",.red,"Hostile"),("grey",.gray,"Hostile"),("neutral-equals",.white,"Hostile"),("orange",.orange,"Hostile"),("yellow",.yellow,"Hostile"),("self-no-badge",nil,"Ignored"),("dark-blue",NSColor(srgbRed:11/255.0,green:32/255.0,blue:96/255.0,alpha:1),"Friendly"),("dark-green",NSColor(srgbRed:23/255.0,green:96/255.0,blue:25/255.0,alpha:1),"Friendly")]
                 var checked:[String:String]=[:]
                 for (name,color,expected) in cases {
                     let image=NSImage(size:NSSize(width:500,height:100));image.lockFocus()
                     NSColor.black.setFill();NSRect(x:0,y:0,width:500,height:100).fill()
-                    color?.setFill();if color != nil {NSRect(x:28,y:39,width:16,height:20).fill()}
+                    color?.setFill();if name == "neutral-equals" {
+                        NSRect(x:28,y:43,width:12,height:2).fill();NSRect(x:28,y:49,width:12,height:2).fill()
+                    } else if color != nil {NSRect(x:28,y:39,width:16,height:20).fill()}
                     ("PlayerX" as NSString).draw(at:NSPoint(x:50,y:35),withAttributes:[.font:NSFont.systemFont(ofSize:28),.foregroundColor:NSColor.white])
                     image.unlockFocus()
                     guard let cg=image.cgImage(forProposedRect:nil,context:nil,hints:nil) else {throw NSError(domain:"SMT",code:5)}
