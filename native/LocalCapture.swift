@@ -48,7 +48,7 @@ private func memberCountHeader(_ img:CGImage,_ lines:[[TextFragment]]) -> Bool {
     let text=first.map{$0.text}.joined(separator:"").replacingOccurrences(of:",",with:"")
     guard !text.isEmpty,text.count<=6,text.allSatisfy({$0.isNumber}),lines.count>1 else {return false}
     let box=anchor.box, next=lines[1][0].box
-    guard 1-box.maxY<=max(0.15,box.height*6),box.midY-next.midY>box.height*1.3 else {return false}
+    guard 1-box.maxY<=max(0.15,box.height*6),box.midY-next.midY>min(box.height,next.height)*1.3 else {return false}
     let bitmap=NSBitmapImageRep(cgImage:img),h=max(6,Int(box.height*Double(img.height)))
     let edge=Int(box.minX*Double(img.width))-2
     let top=max(0,Int((1-box.maxY)*Double(img.height))-h/3)
