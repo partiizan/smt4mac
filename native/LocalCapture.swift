@@ -48,7 +48,7 @@ private func classify(_ img: CGImage, _ fragments: [TextFragment]) -> [[String:A
         let nameEdge=nameX-2
         let left=max(0,nameX-rowHeight*2),right=min(img.width-1,max(nameEdge,Int(Double(rowHeight)*1.5)))
         let top=max(0,Int((1-box.maxY)*Double(img.height))),bottom=min(img.height-1,Int((1-box.minY)*Double(img.height)))
-        var friendly=0,other=0,neutral=0,rejected=0
+        var friendly=0,other=0,neutral=0,visible=0
         func kind(_ x:Int,_ y:Int) -> Int {
             guard x>=0,y>=0,x<img.width,y<img.height,
                   let c=bitmap.colorAt(x:x,y:y)?.usingColorSpace(.deviceRGB) else {return 0}
@@ -63,17 +63,17 @@ private func classify(_ img: CGImage, _ fragments: [TextFragment]) -> [[String:A
         if right>left && bottom>=top {for y in top...bottom {for x in left...right {
             let k=kind(x,y)
             if k==0 || (k==3 && x>nameEdge) {continue}
+            visible+=1
             let vertical=(1...reach).allSatisfy{kind(x,y-$0)==k} || (1...reach).allSatisfy{kind(x,y+$0)==k}
             let horizontal=(1...reach).allSatisfy{kind(x-$0,y)==k} || (1...reach).allSatisfy{kind(x+$0,y)==k}
-            if vertical || horizontal {rejected+=1;continue}
+            if vertical || horizontal {continue}
             if k==1 {friendly+=1} else if k==2 {other+=1} else {neutral+=1}
         }}}
         let samples=max(1,(right-left+1)*(bottom-top+1))
         let style: String
-        if Double(friendly+other+neutral)/Double(samples)>=0.75 {style="Unknown"}
+        if Double(visible)/Double(samples)>=0.75 {style="Unknown"}
         else if friendly>=4 && other<4 {style="Friendly"}
         else if other>=4 || (neutral>=4 && friendly<4) {style="Hostile"}
-        else if rejected>=4 {style="Unknown"}
         else {style="Ignored"} // No visible badge: self. Blank space has no recognized row.
         return ["name":name,"confidence":line.map{$0.confidence}.min() ?? 0,"standing":style,"badgeDebug":[left,right,top,bottom,friendly,other,neutral],"ocrBox":[box.minX,box.minY,box.width,box.height]]
     }
@@ -155,7 +155,7 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
                 borders.unlockFocus()
                 guard let borderCG=borders.cgImage(forProposedRect:nil,context:nil,hints:nil) else {throw NSError(domain:"SMT",code:11)}
                 let borderRows=classify(borderCG,[TextFragment(text:"Chong Dong",confidence:1,box:CGRect(x:30/500.0,y:203/300.0,width:90/500.0,height:14/300.0)),TextFragment(text:"Footer artifact",confidence:1,box:CGRect(x:30/500.0,y:50/300.0,width:90/500.0,height:14/300.0))])
-                guard !borderRows.contains(where:{$0["standing"] as? String == "Hostile"}) else {throw NSError(domain:"SMT",code:12,userInfo:[NSLocalizedDescriptionKey:"Border/empty-space regression: \(borderRows)"])}
+                guard borderRows.allSatisfy({$0["standing"] as? String == "Ignored"}) else {throw NSError(domain:"SMT",code:12,userInfo:[NSLocalizedDescriptionKey:"Border/empty-space regression: \(borderRows)"])}
                 let blank=NSImage(size:NSSize(width:500,height:300));blank.lockFocus();NSColor.black.setFill();NSRect(x:0,y:0,width:500,height:300).fill();blank.unlockFocus()
                 guard let blankCG=blank.cgImage(forProposedRect:nil,context:nil,hints:nil),try recognize(blankCG).isEmpty else {throw NSError(domain:"SMT",code:13,userInfo:[NSLocalizedDescriptionKey:"Blank crop produced roster rows"])}
                 // A tall Local roster with small names must not be discarded by Vision's relative-height filter.
