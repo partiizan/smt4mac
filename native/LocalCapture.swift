@@ -2,18 +2,36 @@ import Foundation
 import AppKit
 import ScreenCaptureKit
 import Vision
+import AVFoundation
 
 // Loaded inside SMT4Mac so screen-recording consent belongs to the app bundle.
 private let lock = NSLock()
 private var result: String? = nil
-private final class AlertSpeech:NSObject,NSSpeechSynthesizerDelegate {
-    private let synth=NSSpeechSynthesizer()
-    private var pending:[(String,Float)]=[]
-    private var active=false
-    override init(){super.init();synth.delegate=self}
-    func enqueue(_ message:String,_ volume:Float){pending.append((message,volume));next()}
-    private func next(){guard !active,!pending.isEmpty else {return};let item=pending.removeFirst();synth.volume=item.1;active=true;if !synth.startSpeaking(item.0){active=false;next()}}
-    func speechSynthesizer(_ sender:NSSpeechSynthesizer,didFinishSpeaking finishedSpeaking:Bool){active=false;next()}
+private final class AlertSpeech {
+    private let synth=AVSpeechSynthesizer()
+    func voices() -> [AVSpeechSynthesisVoice] {
+        AVSpeechSynthesisVoice.speechVoices().sorted {
+            if $0.quality.rawValue != $1.quality.rawValue {return $0.quality.rawValue > $1.quality.rawValue}
+            return $0.identifier < $1.identifier
+        }
+    }
+    func resolve(_ identifier:String) -> AVSpeechSynthesisVoice? {
+        let available=voices()
+        if let selected=available.first(where:{$0.identifier==identifier}) {return selected}
+        return available.first(where:{$0.language=="en-ZA"}) ?? available.first(where:{$0.language.hasPrefix("en-")}) ?? AVSpeechSynthesisVoice(language:"en-US") ?? available.first
+    }
+    func describe(_ voice:AVSpeechSynthesisVoice) -> [String:Any] {
+        ["id":voice.identifier,"name":voice.name,"language":voice.language,"quality":voice.quality == .premium ? "Premium" : voice.quality == .enhanced ? "Enhanced" : "Standard"]
+    }
+    func utterance(_ message:String,_ volume:Float,_ identifier:String) -> AVSpeechUtterance {
+        let utterance=AVSpeechUtterance(string:String(message.prefix(240)))
+        utterance.voice=resolve(identifier);utterance.volume=max(0,min(1,volume));utterance.rate=AVSpeechUtteranceDefaultSpeechRate
+        return utterance
+    }
+    func enqueue(_ message:String,_ volume:Float,_ identifier:String) {
+        // AVSpeechSynthesizer queues utterances without interrupting the previous alert.
+        synth.speak(utterance(message,volume,identifier))
+    }
 }
 private let speech=AlertSpeech()
 private func finish(_ value: [String:Any]) {
@@ -133,8 +151,15 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
     Task { @MainActor in
         do {
             let args=try JSONSerialization.jsonObject(with:Data(text.utf8)) as! [String:Any]
+            if args["action"] as? String == "voices" {
+                finish(["voices":speech.voices().map{speech.describe($0)},"automaticVoiceId":speech.resolve("")?.identifier ?? ""]);return
+            }
+            if args["action"] as? String == "speechcheck" {
+                let utterance=speech.utterance(args["message"] as? String ?? "",(args["volume"] as? Float) ?? 0.7,args["voiceIdentifier"] as? String ?? "")
+                finish(["voiceIdentifier":utterance.voice?.identifier ?? "","volume":utterance.volume,"message":utterance.speechString]);return
+            }
             if args["action"] as? String == "alert" {
-                if args["voice"] as? Bool == true {speech.enqueue(String((args["message"] as? String ?? "Alert").prefix(240)),(args["volume"] as? Float) ?? 0.7)}
+                if args["voice"] as? Bool == true {speech.enqueue(String((args["message"] as? String ?? "Alert").prefix(240)),(args["volume"] as? Float) ?? 0.7,args["voiceIdentifier"] as? String ?? "")}
                 if args["siren"] as? Bool == true {NSSound(named:"Sosumi")?.play()}
                 finish(["ok":true]);return
             }

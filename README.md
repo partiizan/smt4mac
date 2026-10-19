@@ -1,12 +1,16 @@
-# SMT4Mac v0.13.0
+# SMT4Mac v0.14.0
 
-See [v0.13.0 changes and monitoring behavior](RELEASE-v0.13.0.md). Native screen monitoring requires macOS 14+. ESI character login remains deferred.
+See [v0.14.0 changes and monitoring behavior](RELEASE-v0.14.0.md). Native screen monitoring requires macOS 14+. ESI character login remains deferred.
 
 # SMT4Mac — Native macOS client
 
 A native macOS map and intel-monitoring beta. Includes the self-contained `.app`; no Terminal launcher or .NET installation is required.
 
-## New in v0.13
+## New in v0.14
+
+Modern macOS speech synthesis, installed voice selection and preview, with automatic preference for South African English. Downloaded Enhanced/Premium voices are supported when exposed by macOS; exact Siri-only voices may not be available. Voice selection and shared volume persist across launches.
+
+## Previous: v0.13
 
 Local status automatically clears after a healthy friendly-only scan. Local and Extended Area now have permanent independent bars and notifications. Stop/start retains the crop and rejects old-session results. Intel pilot sightings no longer need hostile keywords, and the top member-count/person-icon header is excluded from pilot OCR. See the release notes for details.
 
@@ -44,7 +48,7 @@ After installing, the app rereads recent history automatically. Your earlier tes
 
 ## Download
 
-[Download v0.13.0 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.13.0/SMT4Mac-0.13.0-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
+[Download v0.14.0 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.14.0/SMT4Mac-0.14.0-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
 
 The ZIP includes the compiled app and corresponding source. The installed app is named **SMT4Mac.app**.
 

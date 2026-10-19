@@ -10,7 +10,7 @@ using System.Text.RegularExpressions;
 namespace Smt.Desktop;
 
 public sealed record ConditionAlert(bool Voice=false,bool Sound=false,bool Popup=false,string Message="");
-public sealed record MonitorPrefs(string System="",string Coverage="Nearby",string Target="",int Jumps=3,int Minutes=5,bool Voice=false,bool Siren=false,bool Popup=false,string Message="Threat detected",double Volume=.7,ConditionAlert? Yellow=null,ConditionAlert? Red=null)
+public sealed record MonitorPrefs(string System="",string Coverage="Nearby",string Target="",int Jumps=3,int Minutes=5,bool Voice=false,bool Siren=false,bool Popup=false,string Message="Threat detected",double Volume=.7,ConditionAlert? Yellow=null,ConditionAlert? Red=null,string VoiceIdentifier="")
 {
     public ConditionAlert YellowAlert=>Yellow??new(Voice,Siren,Popup,"Caution, hostiles in the nearby area");
     public ConditionAlert RedAlert=>Red??new(Voice,Siren,Popup,"Alert, hostiles entering local");
@@ -138,7 +138,7 @@ public partial class MainWindow
         if(alert.Popup){var popup=new Window{Title=title,Width=440,Height=230,Content=new TextBlock{Text=title+"\n\n"+alert.Message+"\n\n"+detail,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(20)}};popup.Show(this);}
         if(alert.Voice||alert.Sound)
         {
-            try{await NativeCapture.Call(new{action="alert",voice=alert.Voice,siren=alert.Sound,message=alert.Message,volume=prefs.Volume});}
+            try{await NativeCapture.Call(new{action="alert",voice=alert.Voice,siren=alert.Sound,message=alert.Message,volume=prefs.Volume,voiceIdentifier=prefs.VoiceIdentifier});}
             catch(Exception e){SetStatus("Audio unavailable: "+e.Message);}
         }
     }

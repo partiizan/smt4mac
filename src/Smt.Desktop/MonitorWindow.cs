@@ -25,6 +25,10 @@ public sealed class MonitorWindow:Window
     private readonly CheckBox redVoice=new(){Name="RedVoice",Content="Voice"},redSound=new(){Name="RedSound",Content="Sound"},redPopup=new(){Name="RedPopup",Content="Popup"};
     private readonly TextBox yellowMessage=new(){Name="YellowMessage",Watermark="Yellow alert message"},redMessage=new(){Name="RedMessage",Watermark="Red alert message"};
     private readonly Slider volume=new(){Minimum=0,Maximum=1,Value=.7};
+    public sealed record VoiceChoice(string Id,string Label) {public override string ToString()=>Label;}
+    private readonly ComboBox voicePicker=new(){Name="VoicePicker",HorizontalAlignment=Avalonia.Layout.HorizontalAlignment.Stretch};
+    private readonly TextBlock voiceStatus=new(){TextWrapping=TextWrapping.Wrap};
+    private bool closed;
     private Point? drag;
     private double zoom=1,baseHeight=450;
     private readonly Grid captureGrid=new();
@@ -45,9 +49,12 @@ public sealed class MonitorWindow:Window
         void Coverage(){var current=universe.Systems.GetValueOrDefault(system.Text?.Trim()??"");constellation.Text=current==null?"Enter a valid system to set nearby coverage.":$"Constellation: {current.Constellation}\nEntire constellation OR within 3 stargate jumps of {current.Name}.";}
         system.PropertyChanged+=(_,e)=>{if(e.Property==AutoCompleteBox.TextProperty)Coverage();};Coverage();
         minutes.Value=prefs.Minutes;volume.Value=prefs.Volume;
+        voicePicker.ItemsSource=new[]{new VoiceChoice("","Automatic · prefer South African English"),new VoiceChoice(prefs.VoiceIdentifier,"Saved voice · checking availability")};
+        voicePicker.SelectedIndex=string.IsNullOrEmpty(prefs.VoiceIdentifier)?0:1;
+        Opened+=async(_,_)=>await RefreshVoices();
         yellowVoice.IsChecked=prefs.YellowAlert.Voice;yellowSound.IsChecked=prefs.YellowAlert.Sound;yellowPopup.IsChecked=prefs.YellowAlert.Popup;yellowMessage.Text=prefs.YellowAlert.Message;
         redVoice.IsChecked=prefs.RedAlert.Voice;redSound.IsChecked=prefs.RedAlert.Sound;redPopup.IsChecked=prefs.RedAlert.Popup;redMessage.Text=prefs.RedAlert.Message;
-        Closed+=(_,_)=>{(preview.Source as IDisposable)?.Dispose();(live.Source as IDisposable)?.Dispose();};
+        Closed+=(_,_)=>{closed=true;(preview.Source as IDisposable)?.Dispose();(live.Source as IDisposable)?.Dispose();};
         var stack=new StackPanel{Spacing=10,Margin=new Thickness(20)};
         Content=new ScrollViewer{Content=stack,HorizontalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled};
         stack.Children.Add(new TextBlock{Text="LOCAL SCREEN MONITOR · BETA",FontSize=20,FontWeight=FontWeight.Bold});
@@ -87,12 +94,37 @@ public sealed class MonitorWindow:Window
         AlertSection("Yellow","Threats nearby",yellowVoice,yellowSound,yellowPopup,yellowMessage);
         AlertSection("Red","Immediate local threat",redVoice,redSound,redPopup,redMessage);
         stack.Children.Add(new TextBlock{Text="Voice volume · both alert levels"});stack.Children.Add(volume);
+        stack.Children.Add(new TextBlock{Text="Alert voice · both alert levels",FontWeight=FontWeight.Bold});stack.Children.Add(voicePicker);stack.Children.Add(voiceStatus);
+        var voiceButtons=new StackPanel{Orientation=Avalonia.Layout.Orientation.Horizontal,Spacing=8};
+        var refreshVoices=new Button{Content="Refresh voices"};refreshVoices.Click+=async(_,_)=>await RefreshVoices();voiceButtons.Children.Add(refreshVoices);
+        var previewVoice=new Button{Name="PreviewVoice",Content="Preview voice"};previewVoice.Click+=async(_,_)=>{
+            try{await NativeCapture.Call(new{action="alert",voice=true,siren=false,message="Caution, hostiles in the nearby area. Alert, hostiles entering local.",volume=volume.Value,voiceIdentifier=(voicePicker.SelectedItem as VoiceChoice)?.Id??""});}
+            catch(Exception e){voiceStatus.Text="Voice preview unavailable: "+e.Message;}
+        };voiceButtons.Children.Add(previewVoice);stack.Children.Add(voiceButtons);
+        stack.Children.Add(new TextBlock{Text="Download additional voices in System Settings → Accessibility → Read & Speak (Spoken Content on older macOS) → System voice → Manage Voices, then refresh. Enhanced and Premium voices appear when available to apps. Siri-only voices may not appear. Preview works even when alert voice toggles are off.",TextWrapping=TextWrapping.Wrap});
         var save=new Button{Name="SaveAlerts",Content="Save alert settings"};save.Click+=(_,_)=>{owner.ConfigureMonitor(Prefs());status.Text="Alert settings saved. No ESI login is used.";};stack.Children.Add(save);
         var clear=new Button{Content="Clear system capture area (use manual system)"};clear.Click+=(_,_)=>{systemArea=null;status.Text="System area cleared; press Start monitoring to apply.";};stack.Children.Add(clear);
     }
-    private MonitorPrefs Prefs()=>new(System:system.Text?.Trim()??"",Coverage:"Automatic",Jumps:3,Minutes:(int)(minutes.Value??5),Volume:volume.Value,
+    private MonitorPrefs Prefs()=>new(System:system.Text?.Trim()??"",Coverage:"Automatic",Jumps:3,Minutes:(int)(minutes.Value??5),Volume:volume.Value,VoiceIdentifier:(voicePicker.SelectedItem as VoiceChoice)?.Id??"",
         Yellow:new(yellowVoice.IsChecked==true,yellowSound.IsChecked==true,yellowPopup.IsChecked==true,yellowMessage.Text??""),
         Red:new(redVoice.IsChecked==true,redSound.IsChecked==true,redPopup.IsChecked==true,redMessage.Text??""));
+    private async Task RefreshVoices()
+    {
+        try{var data=await NativeCapture.Call(new{action="voices"});if(!closed)ApplyVoices(data);}
+        catch(Exception e){if(!closed)voiceStatus.Text="Could not list installed voices: "+e.Message;}
+    }
+    public void ApplyVoices(JsonElement data)
+    {
+        var selected=(voicePicker.SelectedItem as VoiceChoice)?.Id??"";
+        var choices=new List<VoiceChoice>{new("","Automatic · prefer South African English")};
+        choices.AddRange(data.GetProperty("voices").EnumerateArray().Select(v=>new VoiceChoice(v.GetProperty("id").GetString()!, $"{v.GetProperty("name").GetString()} · {v.GetProperty("language").GetString()} · {v.GetProperty("quality").GetString()}")));
+        var automatic=data.GetProperty("automaticVoiceId").GetString();
+        var label=choices.FirstOrDefault(v=>v.Id==automatic && v.Id!="")?.Label??"system default";
+        var missing=selected!=""&&!choices.Any(v=>v.Id==selected);
+        if(missing)choices.Add(new(selected,"Saved voice unavailable · using automatic fallback"));
+        voicePicker.ItemsSource=choices;voicePicker.SelectedItem=choices.First(v=>v.Id==selected);
+        voiceStatus.Text=(missing?"Saved voice is unavailable. ":"")+"Automatic voice: "+label;
+    }
     private void Draw(Point a,Point b){Canvas.SetLeft(selection,Math.Clamp(Math.Min(a.X,b.X),0,overlay.Width));Canvas.SetTop(selection,Math.Clamp(Math.Min(a.Y,b.Y),0,overlay.Height));selection.Width=Math.Min(overlay.Width,Math.Abs(a.X-b.X));selection.Height=Math.Min(overlay.Height,Math.Abs(a.Y-b.Y));}
     private void SetZoom(double value,Point? anchor=null)
     {
