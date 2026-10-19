@@ -22,8 +22,8 @@ public sealed class MonitorWindow:Window
     private readonly ComboBox coverage=new(){ItemsSource=new[]{"Nearby","System","Constellation","Follow constellation"},SelectedIndex=0};
     private readonly AutoCompleteBox target=new(){Watermark="Yellow target system / constellation",MinimumPrefixLength=1,FilterMode=AutoCompleteFilterMode.ContainsOrdinal};
     private readonly NumericUpDown jumps=new(){Minimum=1,Maximum=30,Value=3,FormatString="'Nearby jumps: '0"},minutes=new(){Minimum=1,Maximum=30,Value=5,FormatString="'Intel expiry minutes: '0"};
-    private readonly CheckBox voice=new(){Content="Voice"},siren=new(){Content="Sound"},popup=new(){Content="Popup"},badges=new(){Content="Use standard blue/green friendly badges (experimental)"};
-    private readonly TextBox message=new(){Watermark="Spoken alert message"},friends=new(){Watermark="Known friendly names, comma separated (include your pilot)"};
+    private readonly CheckBox voice=new(){Content="Voice"},siren=new(){Content="Sound"},popup=new(){Content="Popup"};
+    private readonly TextBox message=new(){Watermark="Spoken alert message"};
     private readonly Slider volume=new(){Minimum=0,Maximum=1,Value=.7};
     private Point? drag;
     private double[]? localArea,systemArea;
@@ -32,7 +32,7 @@ public sealed class MonitorWindow:Window
     {
         this.owner=owner;Title="SMT4Mac · Local monitoring & alerts";Width=880;Height=880;MinWidth=850;Background=Brush.Parse("#0E1723");
         system.ItemsSource=universe.Systems.Keys.Order().ToArray();system.Text=prefs.System;
-        coverage.SelectedItem=prefs.Coverage;target.Text=prefs.Target;jumps.Value=prefs.Jumps;minutes.Value=prefs.Minutes;voice.IsChecked=prefs.Voice;siren.IsChecked=prefs.Siren;popup.IsChecked=prefs.Popup;badges.IsChecked=prefs.TrustBadges;friends.Text=prefs.FriendlyNames;message.Text=prefs.Message;volume.Value=prefs.Volume;
+        coverage.SelectedItem=prefs.Coverage;target.Text=prefs.Target;jumps.Value=prefs.Jumps;minutes.Value=prefs.Minutes;voice.IsChecked=prefs.Voice;siren.IsChecked=prefs.Siren;popup.IsChecked=prefs.Popup;message.Text=prefs.Message;volume.Value=prefs.Volume;
         void Targets(){target.ItemsSource=(coverage.SelectedItem as string) is "Constellation" or "Follow constellation"?universe.Data.Systems.Select(s=>s.Constellation).Where(s=>s.Length>0).Distinct().Order().ToArray():universe.Systems.Keys.Order().ToArray();}
         Targets();coverage.SelectionChanged+=(_,_)=>Targets();
         var stack=new StackPanel{Spacing=10,Margin=new Thickness(20)};
@@ -57,15 +57,15 @@ public sealed class MonitorWindow:Window
             status.Text=(areaMode.SelectedIndex==0?"Local":"System")+" area selected. Press Start monitoring to apply.";
         };
         stack.Children.Add(status);stack.Children.Add(live);stack.Children.Add(roster);
-        stack.Children.Add(new TextBlock{Text="Unknown rows trigger Red after two matching scans. Blue/green badge recognition is optional and must be checked against your EVE settings. Red Local alerts stay latched until you verify in game and restart capture. A pilot no longer visible is not confirmed to have left. Keep the entire Local roster visible where possible.",TextWrapping=TextWrapping.Wrap,Foreground=Brush.Parse("#E8BE76")});
-        stack.Children.Add(friends);stack.Children.Add(badges);stack.Children.Add(system);
+        stack.Children.Add(new TextBlock{Text="Nullsec rules: green, blue and purple icons are friendly. Red, grey, orange, yellow and neutral/no-icon rows trigger Red after two matching scans. Verify recognition against your EVE settings. Red Local alerts stay latched until you verify in game and restart capture. A pilot no longer visible is not confirmed to have left. Keep the entire Local roster visible where possible.",TextWrapping=TextWrapping.Wrap,Foreground=Brush.Parse("#E8BE76")});
+        stack.Children.Add(system);
         stack.Children.Add(new TextBlock{Text="YELLOW COVERAGE",FontWeight=FontWeight.Bold});stack.Children.Add(coverage);stack.Children.Add(target);stack.Children.Add(jumps);stack.Children.Add(minutes);
         var alerts=new StackPanel{Orientation=Avalonia.Layout.Orientation.Horizontal,Spacing=15};alerts.Children.Add(voice);alerts.Children.Add(siren);alerts.Children.Add(popup);stack.Children.Add(alerts);stack.Children.Add(message);stack.Children.Add(new TextBlock{Text="Voice volume"});stack.Children.Add(volume);
         var save=new Button{Content="Save alert settings"};save.Click+=(_,_)=>{owner.ConfigureMonitor(Prefs());status.Text="Alert settings saved. No ESI login is used.";};stack.Children.Add(save);
         var clear=new Button{Content="Clear system capture area (use manual system)"};clear.Click+=(_,_)=>{systemArea=null;status.Text="System area cleared; press Start monitoring to apply.";};stack.Children.Add(clear);
         var test=new Button{Content="Test audio"};test.Click+=async(_,_)=>{try{await NativeCapture.Call(new{action="alert",voice=voice.IsChecked==true,siren=siren.IsChecked==true,message=message.Text??"Test alert",volume=volume.Value});}catch(Exception e){ShowError(e.Message);}};stack.Children.Add(test);
     }
-    private MonitorPrefs Prefs()=>new(system.Text?.Trim()??"",coverage.SelectedItem as string??"Nearby",target.Text?.Trim()??"",(int)(jumps.Value??3),(int)(minutes.Value??5),voice.IsChecked==true,siren.IsChecked==true,popup.IsChecked==true,message.Text??"Threat detected",volume.Value,friends.Text??"",badges.IsChecked==true);
+    private MonitorPrefs Prefs()=>new(system.Text?.Trim()??"",coverage.SelectedItem as string??"Nearby",target.Text?.Trim()??"",(int)(jumps.Value??3),(int)(minutes.Value??5),voice.IsChecked==true,siren.IsChecked==true,popup.IsChecked==true,message.Text??"Threat detected",volume.Value);
     private void Draw(Point a,Point b){Canvas.SetLeft(selection,Math.Clamp(Math.Min(a.X,b.X),0,800));Canvas.SetTop(selection,Math.Clamp(Math.Min(a.Y,b.Y),0,450));selection.Width=Math.Min(800,Math.Abs(a.X-b.X));selection.Height=Math.Min(450,Math.Abs(a.Y-b.Y));}
     private async Task Find(){try{var d=await NativeCapture.Call(new{action="list"});windows.ItemsSource=d.GetProperty("windows").EnumerateArray().Select(w=>new CaptureWindow(w.GetProperty("id").GetInt32(),w.GetProperty("title").GetString()!)).ToArray();windows.SelectedIndex=0;status.Text="Choose the character's window, then load its preview.";}catch(Exception e){ShowError(e.Message);}}
     private async Task Preview()

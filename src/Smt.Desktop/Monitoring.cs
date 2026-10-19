@@ -9,7 +9,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 namespace Smt.Desktop;
 
-public sealed record MonitorPrefs(string System="",string Coverage="Nearby",string Target="",int Jumps=3,int Minutes=5,bool Voice=false,bool Siren=false,bool Popup=false,string Message="Threat detected",double Volume=.7,string FriendlyNames="",bool TrustBadges=false);
+public sealed record MonitorPrefs(string System="",string Coverage="Nearby",string Target="",int Jumps=3,int Minutes=5,bool Voice=false,bool Siren=false,bool Popup=false,string Message="Threat detected",double Volume=.7);
 public sealed record CaptureWindow(int Id,string Title){public override string ToString()=>Title;}
 public partial class MainWindow
 {
@@ -56,9 +56,7 @@ public partial class MainWindow
         {
             var data=await NativeCapture.Call(new{action="capture",id,roi,preview=monitorWindow!=null});
             if(!monitorRunning||id!=captureWindow||!ReferenceEquals(roi,localArea))return;
-            var friends=monitorPrefs.FriendlyNames.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var rows=data.GetProperty("rows").EnumerateArray().Select(r=>new LocalRow(r.GetProperty("name").GetString()!.Trim(),r.GetProperty("confidence").GetDouble(),r.GetProperty("standing").GetString()!))
-                .Select(r=>r with{Standing=friends.Contains(r.Name)?"Friendly":monitorPrefs.TrustBadges?r.Standing:"Unknown"}).ToArray();
+            var rows=data.GetProperty("rows").EnumerateArray().Select(r=>new LocalRow(r.GetProperty("name").GetString()!.Trim(),r.GetProperty("confidence").GetDouble(),r.GetProperty("standing").GetString()!)).ToArray();
             localTracker.Observe(rows);latchedThreat |= localTracker.Threat;lastCapture=DateTimeOffset.UtcNow;
             monitorWindow?.ShowCapture(data,rows,localTracker.Healthy);
             if(systemArea!=null)

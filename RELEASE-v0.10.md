@@ -15,7 +15,7 @@ Download **SMT4Mac-0.10-AppleSilicon.zip**. Requires Apple Silicon and macOS 14 
 1. Quit the old app and move SMT4Mac.app to Applications. This beta is ad-hoc signed, not notarized; macOS may require Privacy & Security → Open Anyway.
 2. Open **Local monitor & alert settings**. Click **Find EVE windows** and grant Screen Recording permission to SMT4Mac, then restart if requested. Documents permission is still required for chat logs.
 3. Select your EVE window, load its preview, and drag around the Local member names **and standing icons**, excluding headers, chat and member counts.
-4. Enter your own pilot and any known friendly names in the exact-name friendly list. Optional blue/green badge recognition is experimental and must be checked against your EVE overview settings. Unknown rows conservatively trigger red after two matching scans.
+4. Check the recognized Local preview against your EVE window. Nullsec rules: green, blue and purple icons are friendly; red, grey, orange, yellow and neutral/no-icon rows are hostile and trigger red after two matching scans. These rules apply to the selected monitor; no friendly-name overrides are used.
 5. Enter your current system manually, or select the optional system-name area from the preview. Configure yellow coverage and audio, then start monitoring.
 
 Capture is explicitly started each session. Areas are window-relative, but must be selected again if the EVE panel layout changes. Closing the setup window leaves capture active; Stop capture ends screen reading while log ingestion continues.

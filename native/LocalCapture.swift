@@ -26,16 +26,17 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
         // Sample saturated pixels immediately left of a name. Unknown is never assumed friendly.
         let left=max(0,Int(box.minX*Double(img.width))-32),right=max(left,Int(box.minX*Double(img.width))-1)
         let top=max(0,Int((1-box.maxY)*Double(img.height))),bottom=min(img.height-1,Int((1-box.minY)*Double(img.height)))
-        var red=0,blue=0,green=0
+        var friendly=0,other=0
         if right>left && bottom>=top {for y in top...bottom {for x in left...right {
             if let c=bitmap.colorAt(x:x,y:y)?.usingColorSpace(.deviceRGB) {
-        let r=c.redComponent,g=c.greenComponent,b=c.blueComponent
-        if r>0.55 && r>g*1.5 && r>b*1.3 {red+=1}
-        if b>0.5 && b>g*1.2 && b>r*1.2 {blue+=1}
-        if g>0.5 && g>r*1.4 && g>b*1.2 {green+=1}
+                var hue:CGFloat=0,saturation:CGFloat=0,brightness:CGFloat=0,alpha:CGFloat=0
+                c.getHue(&hue,saturation:&saturation,brightness:&brightness,alpha:&alpha)
+                if saturation>0.35 && brightness>0.30 {
+                    if hue>=0.25 && hue<=0.88 {friendly+=1} else {other+=1}
+                }
             }
         }}}
-        let style=red>=4 ? "Hostile" : (blue>=4 || green>=4 ? "Friendly" : "Unknown")
+        let style=friendly>=4 && other<4 ? "Friendly" : "Hostile"
         return ["name":candidate.string,"confidence":candidate.confidence,"standing":style]
     }
     return rows
@@ -52,12 +53,20 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
                 finish(["ok":true]);return
             }
             if args["action"] as? String == "selftest" {
-                let image=NSImage(size:NSSize(width:500,height:100));image.lockFocus()
-                NSColor.black.setFill();NSRect(x:0,y:0,width:500,height:100).fill()
-                ("PlayerX" as NSString).draw(at:NSPoint(x:50,y:35),withAttributes:[.font:NSFont.systemFont(ofSize:28),.foregroundColor:NSColor.white])
-                image.unlockFocus()
-                guard let cg=image.cgImage(forProposedRect:nil,context:nil,hints:nil) else {throw NSError(domain:"SMT",code:5)}
-                finish(["rows":try recognize(cg)]);return
+                let cases:[(String,NSColor?,String)]=[("green",.green,"Friendly"),("blue",.blue,"Friendly"),("purple",.purple,"Friendly"),("red",.red,"Hostile"),("grey",.gray,"Hostile"),("orange",.orange,"Hostile"),("yellow",.yellow,"Hostile"),("neutral",nil,"Hostile")]
+                var checked:[String:String]=[:]
+                for (name,color,expected) in cases {
+                    let image=NSImage(size:NSSize(width:500,height:100));image.lockFocus()
+                    NSColor.black.setFill();NSRect(x:0,y:0,width:500,height:100).fill()
+                    color?.setFill();if color != nil {NSRect(x:28,y:39,width:16,height:20).fill()}
+                    ("PlayerX" as NSString).draw(at:NSPoint(x:50,y:35),withAttributes:[.font:NSFont.systemFont(ofSize:28),.foregroundColor:NSColor.white])
+                    image.unlockFocus()
+                    guard let cg=image.cgImage(forProposedRect:nil,context:nil,hints:nil) else {throw NSError(domain:"SMT",code:5)}
+                    let rows=try recognize(cg)
+                    guard let row=rows.first(where:{($0["name"] as? String)?.contains("PlayerX")==true}),row["standing"] as? String == expected else {throw NSError(domain:"SMT",code:6,userInfo:[NSLocalizedDescriptionKey:"Icon test failed: \(name) \(rows)"])}
+                    checked[name]=expected
+                }
+                finish(["name":"PlayerX","rules":checked,"rulesPassed":true]);return
             }
             guard CGPreflightScreenCaptureAccess() else {CGRequestScreenCaptureAccess();throw NSError(domain:"SMT",code:1,userInfo:[NSLocalizedDescriptionKey:"Allow SMT4Mac in System Settings → Privacy & Security → Screen Recording, then restart the app."])}
             let content=try await SCShareableContent.excludingDesktopWindows(true,onScreenWindowsOnly:true)
