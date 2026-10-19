@@ -2,10 +2,10 @@
 
 ## Automatic constellation coverage
 - Resolve the manually entered system against bundled universe/constellation data (no ESI login).
-- Automatically populate the yellow target with that system's constellation and monitor it for yellow threats from enabled intel channels.
+- Automatically populate the yellow target with that system's constellation. Yellow coverage is the UNION of the entire constellation and all systems within 3 stargate jumps of the manual system, including systems outside the constellation. Either criterion qualifies; use enabled intel channels.
 - Recompute the constellation whenever the manual system changes. Show the resolved constellation clearly; invalid/incomplete input must not retain stale coverage.
 - Example system: RF-CN3 (the RN-CN3 entry in the request appears to be a typo).
-- Preserve red priority for the current system / detected Local hostiles; other systems within the resolved constellation produce yellow.
+- Preserve red priority for the current system / detected Local hostiles; other systems within the constellation OR within 1–3 stargate jumps produce yellow. Count gate hops, not Ansiblex or wormhole shortcuts.
 
 ## Separate yellow and red alert settings
 - Audio works: user confirmed the voice/sound toggles were disabled. Remove the audio defect report.
