@@ -85,7 +85,8 @@ public partial class MainWindow
         Get<TextBlock>("AlertTitle").Text=result.Title;
         Get<TextBlock>("AlertTitle").Foreground=result.Level=="Yellow"?Brushes.Black:Brushes.White;
         Get<TextBlock>("AlertDetail").Text=result.Detail+(string.IsNullOrEmpty(location)?"":"\nMonitoring "+location+(systemArea!=null&&monitorRunning?" · screen":" · manual"));
-        if(result.Level!=previousAlert&&result.Level is "Red" or "Yellow" && DateTimeOffset.UtcNow-lastSound>TimeSpan.FromSeconds(15))
+        ToolTip.SetTip(Get<Border>("TrafficLight"),Get<TextBlock>("AlertDetail").Text);
+        if(result.Level!=previousAlert&&result.Level is "Red" or "Yellow" && (result.Level=="Red" || DateTimeOffset.UtcNow-lastSound>TimeSpan.FromSeconds(15)))
         {
             lastSound=DateTimeOffset.UtcNow;
             if(monitorPrefs.Voice||monitorPrefs.Siren)_=SoundAlert(result.Title);

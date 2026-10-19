@@ -146,6 +146,13 @@ try
  window.Width=1560;window.Height=1000;
  live.Wormholes.Clear();live.Wormholes.AddRange(retained);search.Text=" ";
  await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v010-live.png");
+ window.FindControl<Button>("MonitorSetup")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+ await Task.Delay(300);
+ var monitor=(MonitorWindow)typeof(MainWindow).GetField("monitorWindow",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(window)!;
+ if(!monitor.IsVisible)throw new Exception("Monitor settings did not open");
+ using(var frame=monitor.CaptureRenderedFrame())frame?.Save("screenshots/v010-monitor-setup.png");
+ monitor.Close();
+ Console.WriteLine("PASS: Monitoring setup opens without requesting screen permission until explicitly selected");
  Console.WriteLine("Automatic desktop ingestion smoke checks passed on "+System.Runtime.InteropServices.RuntimeInformation.OSDescription);
 }
 catch(Exception error) { failure=error; }

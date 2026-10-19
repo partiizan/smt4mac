@@ -75,7 +75,7 @@
      </StackPanel>
      <StackPanel Grid.Row="1" Spacing="6" Margin="0,8,0,0">
       <Border Name="TrafficLight" Background="#364354" CornerRadius="6" Padding="10"><TextBlock Name="AlertTitle" Text="MONITORING UNAVAILABLE" FontWeight="Bold" TextWrapping="Wrap"/></Border>
-      <TextBlock Name="AlertDetail" FontSize="10" TextWrapping="Wrap" Classes="muted"/>
+      <TextBlock Name="AlertDetail" MaxHeight="32" TextTrimming="CharacterEllipsis" FontSize="10" TextWrapping="Wrap" Classes="muted"/>
       <Button Name="MonitorSetup" Content="Local monitor &amp; alert settings…" FontSize="11"/>
      </StackPanel>
      <TextBlock Grid.Row="3" Name="IntelCount" Text="0 REPORTS" Classes="caption" Margin="0,20,0,10"/>
