@@ -57,6 +57,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
+          latest=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq .object.sha)
+          if [[ "$latest" != "$GITHUB_SHA" ]]; then echo "Superseded build; skipping release."; exit 0; fi
           if gh release view v0.10.0 >/dev/null 2>&1; then
             echo "v0.10.0 already published; preserving its existing assets."
           else

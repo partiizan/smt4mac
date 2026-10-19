@@ -6,7 +6,7 @@ See [v0.10 release and monitoring setup](RELEASE-v0.10.md). Native screen monito
 
 A native macOS map, intel and route-planning beta. Includes the self-contained `.app`; no Terminal launcher or .NET installation is required.
 
-## New in v0.9
+## Previous: v0.9
 
 - Intel and Live panels stay visible together. Drag the horizontal divider to resize them.
 - The Live panel contains a structured Eve-Scout Thera/Turnur table. Search destination, region or signature; filter by hub. Each row shows region/security, explicitly labeled hub/local signatures, maximum ship size and estimated expiry. Map focuses the destination; Copy copies the connection details. Unknown destinations cannot be mapped.
@@ -28,18 +28,18 @@ A native macOS map, intel and route-planning beta. Includes the self-contained `
 - Added visible Intel diagnostics: files found/readable, bytes read, latest batch counts, recent versus out-of-window reports, last data/report times, and per-file access errors.
 - The automatic log location resolves from the current user's home directory. The UI displays `~/Documents/EVE/logs/chatlogs`; hover to see the resolved location. No personal username is built into the path. Previously chosen custom folders remain respected; **Use automatic EVE folder** clears an override.
 
-After installing, the app rereads recent history automatically. Your earlier test message will only be imported if it is still within 15 minutes; send a fresh system-name message to verify.
+After installing, the app rereads recent history automatically. Your earlier test message will only be imported if it is still within 24 hours; send a fresh system-name message to verify.
 
 ## Download
 
-[Download v0.9 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.9.0/SMT-Mac-Beta-0.9-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
+[Download v0.10 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.10.0/SMT4Mac-0.10-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
 
-The ZIP includes the compiled app and corresponding source. The installed app is currently named **SMT Mac Beta.app**.
+The ZIP includes the compiled app and corresponding source. The installed app is named **SMT4Mac.app**.
 
 ## Install
 
-1. Quit the previous SMT Mac Beta.
-2. Unzip the package and move **SMT Mac Beta.app** into Applications, replacing the earlier beta.
+1. Quit the previous SMT client.
+2. Unzip the package and move **SMT4Mac.app** into Applications, replacing the earlier beta.
 3. Open the app. This is ad-hoc signed, not Apple-notarized. If macOS blocks it, use System Settings → Privacy & Security → Open Anyway after reviewing the app's origin.
 4. Allow Documents access when requested. Intel automatically scans `~/Documents/EVE/logs/chatlogs` every two seconds. If an old custom folder was saved, click **Use automatic EVE folder**.
 
