@@ -45,7 +45,7 @@ public sealed class LocalTracker
     {
         var valid=rows.Where(r=>r.Name.Length>1).ToArray();
         // Alert on repeated non-friendly observations even when OCR spelling varies.
-        hostileFrames=valid.Any(r=>r.Confidence>=.4&&r.Standing!="Friendly")?hostileFrames+1:0;
+        hostileFrames=valid.Any(r=>r.Confidence>=.4&&r.Standing!="Friendly"&&r.Standing!="Ignored")?hostileFrames+1:0;
         Confirmed=valid.Where(r=>r.Confidence>=.75&&prior.Contains(r.Name.ToUpperInvariant())).ToArray();
         Healthy=valid.Length>0&&Confirmed.Length==valid.Length;
         prior=valid.Where(r=>r.Confidence>=.75).Select(r=>r.Name.ToUpperInvariant()).ToHashSet();

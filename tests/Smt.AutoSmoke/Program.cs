@@ -39,14 +39,30 @@ try
  window.FindControl<TextBox>("IntelSearch")!.Text="";
  if(window.FindControl<Control>("ToggleWatch")!=null||window.FindControl<Control>("DemoButton")!=null)throw new Exception("Old controls remain");
  if(window.FindControl<TextBlock>("AlertTitle")!.Text!="MONITORING UNAVAILABLE")throw new Exception("No capture must never imply all clear");
- window.FindControl<ComboBox>("RouteMode")!.SelectedIndex=2;
- window.FindControl<AutoCompleteBox>("FromBox")!.Text="1DQ1-A";window.FindControl<AutoCompleteBox>("ToBox")!.Text="N-8YET";
- window.FindControl<Button>("PlanRoute")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
- await PumpUntil(()=>window.FindControl<TextBlock>("RouteSummary")!.Text!.Contains("LY total"),"Capital planner button produces a route");
- if(window.FindControl<StarMap>("Map")!.RouteLegs.Any(l=>l.LightYears>7))throw new Exception("Capital range exceeded");
+ foreach(var removed in new[]{"RouteMode","FromBox","ToBox","PlanRoute","RouteList","SearchBox"})
+  if(window.FindControl<Control>(removed)!=null)throw new Exception("Route control remains: "+removed);
+ var workspace=window.FindControl<Grid>("Workspace")!;
+ var toggle=window.FindControl<Button>("ToggleWormholes")!;
+ var originalHeight=workspace.RowDefinitions[3].Height.Value;
+ toggle.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));await Task.Delay(100);
+ if(window.FindControl<Border>("LivePanel")!.IsVisible || window.FindControl<Border>("WormholeDivider")!.IsVisible || workspace.RowDefinitions[3].Height.Value!=0 || !SettingsStore.Load().WormholesCollapsed)throw new Exception("Wormhole minimize failed");
+ toggle.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));await Task.Delay(100);
+ if(!window.FindControl<Border>("LivePanel")!.IsVisible || workspace.RowDefinitions[3].Height.Value!=originalHeight)throw new Exception("Wormhole restore failed");
+ var divider=window.FindControl<Border>("WormholeDivider")!;
+ var drag=divider.TranslatePoint(new Point(100,4),window)!.Value;
+ window.MouseDown(drag,Avalonia.Input.MouseButton.Left);window.MouseMove(drag-new Vector(0,25));window.MouseUp(drag-new Vector(0,25),Avalonia.Input.MouseButton.Left);await Task.Delay(100);
+ if(SettingsStore.Load().WormholeHeight<=originalHeight)throw new Exception("Wormhole resize/persistence failed");
+ toggle.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));toggle.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+ if(workspace.RowDefinitions[3].Height.Value!=SettingsStore.Load().WormholeHeight)throw new Exception("Resized drawer height lost");
+ var intelDivider=window.FindControl<GridSplitter>("IntelDivider")!;
+ var intelBefore=window.FindControl<Border>("IntelPanel")!.Bounds.Width;
+ var point=intelDivider.TranslatePoint(new Point(4,100),window)!.Value;
+ window.MouseDown(point,Avalonia.Input.MouseButton.Left);window.MouseMove(point-new Vector(40,0));window.MouseUp(point-new Vector(40,0),Avalonia.Input.MouseButton.Left);await Task.Delay(100);
+ if(window.FindControl<Border>("IntelPanel")!.Bounds.Width<=intelBefore)throw new Exception("Intel divider failed");
+ Console.WriteLine("PASS: Route UI removed, drawer collapse/restore/resize and intel resize work");
  Directory.CreateDirectory("screenshots");
  await Task.Delay(300);
- using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v010-intel.png");
+ using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v011-intel.png");
  if(!window.FindControl<TextBlock>("IntelDiagnostics")!.Text!.Contains("Last report:"))throw new Exception("Missing intel diagnostics");
  if(!window.FindControl<TextBlock>("IntelState")!.Text!.Contains("~/Documents/EVE/logs/"))throw new Exception("Default path is not displayed relative to current user");
  Console.WriteLine("PASS: Intel diagnostics and current-user default path visible");
@@ -54,7 +70,7 @@ try
  admPicker.SelectedIndex=1;if(window.FindControl<StarMap>("Map")!.AdmThreshold!=5)throw new Exception("ADM <5 selection failed");
  admPicker.SelectedIndex=2;if(window.FindControl<StarMap>("Map")!.AdmThreshold!=4 || SettingsStore.Load().AdmThreshold!=4)throw new Exception("ADM <4 persistence failed");
  Console.WriteLine("PASS: ADM threshold controls update map and persist preference");
- await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v010-intel.png");
+ await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v011-intel.png");
  if(window.FindControl<Control>("OperationsTabs")!=null || window.FindControl<Control>("ActivityLayer")!=null || !window.FindControl<Border>("IntelPanel")!.IsVisible || !window.FindControl<Border>("LivePanel")!.IsVisible)throw new Exception("Persistent panel layout failed");
  Console.WriteLine("PASS: Intel and Live both visible; activity controls absent");
  var regionPicker=window.FindControl<ComboBox>("RegionPicker")!;
@@ -68,10 +84,6 @@ try
      if(window.FindControl<TextBlock>("RegionTitle")!.Text!=name)
          throw new Exception("Background selection changed region "+name);
  }
- var routeList=window.FindControl<ListBox>("RouteList")!;
- routeList.ItemsSource=new[]{new LiveItem("Jita","Jita")};routeList.SelectedIndex=0;
- routeList.RaiseEvent(new Avalonia.Input.KeyEventArgs{RoutedEvent=Avalonia.Input.InputElement.KeyDownEvent,Key=Avalonia.Input.Key.Enter});
- if(window.FindControl<TextBlock>("RegionTitle")!.Text!="The Forge")throw new Exception("Explicit system activation failed");
  regionPicker.SelectedItem=regions.First(r=>r.Name=="Period Basis");
  regionPicker.Focus();
  window.KeyPressQwerty(Avalonia.Input.PhysicalKey.F4,Avalonia.Input.RawInputModifiers.None);
@@ -98,24 +110,7 @@ try
  if(window.FindControl<TextBlock>("RegionTitle")!.Text!="Delve" || SettingsStore.Load().Region!="Delve")
      throw new Exception("Region selection did not survive refresh");
  Console.WriteLine("PASS: Period Basis, Delve, Querious switches survive live/intel refresh; explicit activation still works");
- foreach(var name in new[]{"FromBox","ToBox"})
- {
-     var box=window.FindControl<AutoCompleteBox>(name)!;
-     var input=box.GetVisualDescendants().OfType<TextBox>().Single();
-     input.Focus();input.SelectAll();window.KeyTextInput("p");
-     await PumpUntil(()=>box.IsDropDownOpen,name+" suggests from the first character");
-     window.KeyTextInput("-z");
-     await PumpUntil(()=>box.IsDropDownOpen,name+" opens prefix suggestions");
-     var matches=box.ItemsSource!.Cast<string>().Where(n=>box.TextFilter!("p-z",n)).ToArray();
-     if(!matches.Contains("P-ZMZV") || matches.Any(n=>!n.StartsWith("p-z",StringComparison.OrdinalIgnoreCase)))
-         throw new Exception("Incorrect autocomplete matches");
-     window.KeyPressQwerty(Avalonia.Input.PhysicalKey.ArrowDown,Avalonia.Input.RawInputModifiers.None);
-     window.KeyPressQwerty(Avalonia.Input.PhysicalKey.Enter,Avalonia.Input.RawInputModifiers.None);await Task.Delay(100);
-     if(box.Text!="P-ZMZV")throw new Exception("Suggestion did not fill route field");
-     box.IsDropDownOpen=false;
- }
- Console.WriteLine("PASS: Start and destination suggest P-ZMZV for p-z and accept selection");
- await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v010-intel.png");
+ await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v011-intel.png");
  // Deterministic Eve-Scout fixtures verify filtering and row actions independently of live feed contents.
  var live=(Situational)typeof(MainWindow).GetField("situation",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(window)!;
  var retained=live.Wormholes.ToArray();live.Wormholes.Clear();
@@ -138,14 +133,14 @@ try
  search.Text="";await Task.Delay(150);
  if(connections.ItemCount!=2)throw new Exception("Expired connection remains visible");
  Console.WriteLine("PASS: Wormhole region/hub filters, empty state, expired removal, signature orientation and map action");
- await Task.Delay(200);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v010-fixtures.png");
+ await Task.Delay(200);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v011-fixtures.png");
  window.Width=1280;window.Height=850;await Task.Delay(300);
  if(window.FindControl<Border>("LivePanel")!.Bounds.Height<280 || window.FindControl<ListBox>("IntelList")!.Bounds.Height<30 || connections.Bounds.Height<50)throw new Exception("Minimum-size panels unusable");
- using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v010-small.png");
+ using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v011-small.png");
  Console.WriteLine("PASS: Intel stream and connection table remain usable at 1280 x 850");
  window.Width=1560;window.Height=1000;
  live.Wormholes.Clear();live.Wormholes.AddRange(retained);search.Text=" ";
- await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v010-live.png");
+ await Task.Delay(300);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v011-live.png");
  window.FindControl<Button>("MonitorSetup")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
  await Task.Delay(300);
  var monitor=(MonitorWindow)typeof(MainWindow).GetField("monitorWindow",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance)!.GetValue(window)!;
@@ -155,7 +150,7 @@ try
  if(monitor.GetVisualDescendants().OfType<Avalonia.Controls.Canvas>().Single().Width!=1000)throw new Exception("Preview zoom did not resize selection surface");
  monitor.GetVisualDescendants().OfType<Button>().Single(b=>b.Name=="CaptureFit").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
  Console.WriteLine("PASS: Preview zoom and fit controls resize the capture selection surface");
- using(var frame=monitor.CaptureRenderedFrame())frame?.Save("screenshots/v010-monitor-setup.png");
+ using(var frame=monitor.CaptureRenderedFrame())frame?.Save("screenshots/v011-monitor-setup.png");
  monitor.Close();
  Console.WriteLine("PASS: Monitoring setup opens without requesting screen permission until explicitly selected");
  Console.WriteLine("Automatic desktop ingestion smoke checks passed on "+System.Runtime.InteropServices.RuntimeInformation.OSDescription);

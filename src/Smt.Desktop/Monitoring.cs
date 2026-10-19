@@ -89,7 +89,7 @@ public partial class MainWindow
             if(!universe.Systems.ContainsKey(location))reasons.Add("Current system missing: enter it in alert settings or select its screen area. Local hostile alerts still work without it.");
             if(!logsHealthy)reasons.Add("Intel logs unavailable; check log diagnostics.");
             if(reasons.Count==0)reasons.Add("Select a valid yellow target system or constellation.");
-            result=result with{Detail=string.Join("\n",reasons)};
+            result=result with{Title=fresh&&localTracker.Healthy?"LOCAL CLEAR · INTEL INCOMPLETE":result.Title,Detail=string.Join("\n",reasons)};
         }
         Get<Border>("TrafficLight").Background=Brush.Parse(result.Level switch{"Red"=>"#A51E35","Yellow"=>"#D0A62C","Green"=>"#166B46",_=>"#364354"});
         Get<TextBlock>("AlertTitle").Text=result.Title;

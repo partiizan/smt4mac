@@ -13,7 +13,7 @@ public partial class MainWindow
     private readonly DispatcherTimer operationTimer=new(){Interval=TimeSpan.FromSeconds(6)};
     private readonly Dictionary<long,string> ships=[];
     private Bridge[] bridges=[];
-    private bool liveBusy,routeBusy;
+    private bool liveBusy;
     private static void Browse(string url)=>Process.Start(new ProcessStartInfo(url){UseShellExecute=true});
     private void InitializeOperations()
     {
@@ -25,9 +25,6 @@ public partial class MainWindow
         }
         catch(Exception e) when(e is IOException or JsonException){SetStatus("Ship names unavailable; using type IDs.");}
         situation=new(liveApi,universe);
-        Get<ComboBox>("RouteMode").ItemsSource=new[]{"Stargates", "Gates + Ansiblex", "Capital jumps"};Get<ComboBox>("RouteMode").SelectedIndex=0;
-        Get<ComboBox>("ShipPicker").ItemsSource=Navigation.Ships;Get<ComboBox>("ShipPicker").SelectedIndex=0;
-        Get<ComboBox>("RouteMode").SelectionChanged+=(_,_)=>UpdateRange();Get<ComboBox>("ShipPicker").SelectionChanged+=(_,_)=>UpdateRange();Get<NumericUpDown>("Calibration").ValueChanged+=(_,_)=>UpdateRange();UpdateRange();
         Get<ComboBox>("WormholeHub").ItemsSource=new[]{"All hubs","Thera","Turnur"};
         Get<ComboBox>("WormholeHub").SelectedIndex=0;
         Get<ComboBox>("WormholeHub").SelectionChanged+=(_,_)=>RefreshWormholeRows();
@@ -44,34 +41,6 @@ public partial class MainWindow
         Opened+=(_,_)=>{operationTimer.Start();_ = RefreshLive();};
     }
     private void StopOperations(){operationTimer.Stop();liveApi.Dispose();}
-    private void UpdateRange()
-    {
-        bool capital=Get<ComboBox>("RouteMode").SelectedIndex==2;
-        Get<ComboBox>("ShipPicker").IsVisible=capital;Get<NumericUpDown>("Calibration").IsVisible=capital;Get<TextBlock>("JumpRangeLabel").IsVisible=capital;
-        Get<CheckBox>("HighSecOnly").IsVisible=!capital;
-        Get<TextBlock>("JumpRangeLabel").Text=$"Maximum {Navigation.Range(Math.Max(0,Get<ComboBox>("ShipPicker").SelectedIndex),(int)(Get<NumericUpDown>("Calibration").Value??5)):0.0} LY per jump";
-    }
-    private static string[] Names(string? value)=>(value??"").Split(',',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries);
-    private async void Plan()
-    {
-        if(routeBusy)return;routeBusy=true;Get<Button>("PlanRoute").IsEnabled=false;
-        try
-        {
-            var from=Get<AutoCompleteBox>("FromBox").Text??"";var to=Get<AutoCompleteBox>("ToBox").Text??"";
-            var waypoints=Names(Get<TextBox>("WaypointsBox").Text);var avoid=new HashSet<string>(Names(Get<TextBox>("AvoidBox").Text),StringComparer.OrdinalIgnoreCase);
-            int mode=Get<ComboBox>("RouteMode").SelectedIndex;bool high=mode!=2 && Get<CheckBox>("HighSecOnly").IsChecked==true;
-            double? range=mode==2?Navigation.Range(Get<ComboBox>("ShipPicker").SelectedIndex,(int)(Get<NumericUpDown>("Calibration").Value??5)):null;
-            var network=mode==1?bridges:[];var highsecStart=Get<ComboBox>("ShipPicker").SelectedIndex is 2 or 4;
-            var route=await Task.Run(()=>Navigation.Plan(universe,from,to,waypoints,avoid,high,network,range,highsecStart));
-            if(closing.IsCancellationRequested)return;
-            Map.Route=route.Systems;Map.RouteLegs=route.Legs;
-            Get<ListBox>("RouteList").ItemsSource=route.Systems.Select((s,i)=>new LiveItem(s.Name,i==0?$"START  {s.Name}":$"{i:00}  {s.Name}\n{route.Legs[i-1].Kind}"+(mode==2?$" · {route.Legs[i-1].LightYears:0.00} LY":""))).ToArray();
-            Get<TextBlock>("RouteSummary").Text=route.Systems.Count==0?"No route found with these restrictions.":$"{route.Legs.Count} hops · {route.Legs.Count(l=>l.Kind=="Ansiblex")} Ansiblex"+(mode==2?$"\n{route.Legs.Sum(l=>l.LightYears):0.00} LY total. Cynos, fuel, fatigue and access must be checked in game.":"\nBridge access, fuel and online status are not verified.");
-            Map.InvalidateVisual();if(route.Systems.Count>0)SelectSystem(route.Systems[0].Name);
-        }
-        catch(Exception e){Map.Route=[];Map.RouteLegs=[];Map.InvalidateVisual();Get<ListBox>("RouteList").ItemsSource=null;Get<TextBlock>("RouteSummary").Text=e.Message;SetStatus("Route: "+e.Message);}
-        finally{routeBusy=false;Get<Button>("PlanRoute").IsEnabled=true;}
-    }
     private void PersistBridges(Bridge[] value)
     {
         Directory.CreateDirectory(SettingsStore.Folder);var path=Path.Combine(SettingsStore.Folder,"ansiblex.csv");File.WriteAllText(path+".tmp",string.Join('\n',value.Select(b=>b.From+","+b.To)));File.Move(path+".tmp",path,true);

@@ -165,6 +165,16 @@ Check(tracker.Threat&&!tracker.Healthy,"Changing OCR spelling at moderate confid
 Check(AlertEngine.Evaluate(universe,[],new AlertOptions(),clock,false,true,false).Level=="Red","Local red works without location or intel logs");
 var normal=CaptureArea.Normalize(80,45,240,135,800,450);var zoomed=CaptureArea.Normalize(160,90,480,270,1600,900);
 Check(normal.SequenceEqual(zoomed),"Zoomed selections preserve window-relative capture coordinates");
+tracker.Reset();
+var self=new LocalRow("Chong Dong",.99,"Ignored");var friend=new LocalRow("Blue Pilot",.99,"Friendly");
+tracker.Observe([self,friend]);tracker.Observe([self,friend]);
+Check(tracker.Healthy&&!tracker.Threat,"Self without a badge does not trigger red or block healthy friendly roster");
+tracker.Reset();tracker.Observe([self]);tracker.Observe([self]);
+Check(tracker.Healthy&&!tracker.Threat,"Self alone is a valid Local roster");
+tracker.Observe([self,new("Neutral",.99,"Hostile")]);tracker.Observe([self,new("Neutral",.99,"Hostile")]);
+Check(tracker.Threat,"Neutral arrival alerts even with ignored self row");
+tracker.Reset();tracker.Observe([]);tracker.Observe([]);
+Check(!tracker.Threat&&!tracker.Healthy,"Entirely unreadable empty capture cannot imply all clear or red");
 Console.WriteLine($"{passed} checks passed.");
 
 sealed class FakeEsi(string json):HttpMessageHandler

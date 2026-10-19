@@ -52,24 +52,8 @@ public partial class MainWindow : Window
         picker.SelectionChanged+=(_,_)=>ChangeRegion();
         picker.SelectedItem=universe.Data.Regions.FirstOrDefault(r=>r.Name==settings.Region) ?? universe.Data.Regions[0];
         Get<TextBox>("ChannelFilter").Text=settings.ChannelFilter;
-        Get<CheckBox>("HighSecOnly").IsChecked=settings.HighSecOnly;
         tailer=new LogTailer(LogFolderLocator.Resolve(settings.LogFolder));
-        Get<TextBox>("SearchBox").TextChanged+=(_,_)=>
-        {
-            var items=universe.Search(Get<TextBox>("SearchBox").Text ?? "").Select(s=>new SearchItem(s)).ToArray();
-            Get<ListBox>("SearchResults").ItemsSource=items;
-            Get<ListBox>("SearchResults").IsVisible=items.Length>0;
-        };
-        WireSystemActivation(Get<ListBox>("SearchResults"),item=>(item as SearchItem)?.System.Name);
-        var systemNames=universe.Systems.Keys.OrderBy(n=>n,StringComparer.OrdinalIgnoreCase).ToArray();
-        Get<AutoCompleteBox>("FromBox").ItemsSource=systemNames;
-        Get<AutoCompleteBox>("ToBox").ItemsSource=systemNames;
         Map.SystemSelected+=name=>SelectSystem(name);
-        Get<Button>("FromSelected").Click+=(_,_)=> { if(selected!=null) Get<AutoCompleteBox>("FromBox").Text=selected; };
-        Get<Button>("ToSelected").Click+=(_,_)=> { if(selected!=null) Get<AutoCompleteBox>("ToBox").Text=selected; };
-        Get<Button>("PlanRoute").Click+=(_,_)=>Plan();
-        Get<Button>("ClearRoute").Click+=(_,_)=> { Map.Route=[]; Map.RouteLegs=[]; Map.InvalidateVisual(); Get<ListBox>("RouteList").ItemsSource=null; Get<TextBlock>("RouteSummary").Text="Route cleared."; };
-        WireSystemActivation(Get<ListBox>("RouteList"),item=>(item as LiveItem)?.System);
         Get<Button>("FitMap").Click+=(_,_)=>Map.Fit();
         Get<Button>("ZoomIn").Click+=(_,_)=>Map.Zoom(1.25);
         Get<Button>("ZoomOut").Click+=(_,_)=>Map.Zoom(.8);
@@ -103,6 +87,7 @@ public partial class MainWindow : Window
         ApplyAdm();
         InitializeOperations();
         InitializeMonitoring();
+        InitializeLayout();
         Get<ListBox>("IntelList").ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<IntelItem>((item,_)=>item==null?new TextBlock():IntelView(item.Report,Get<TextBox>("IntelSearch").Text?.Trim()??""));
         Closed+=(_,_)=> { timer.Stop(); closing.Cancel(); sovereignty.Dispose(); StopOperations(); Save(); };
         UpdateWatchState(); SetStatus("Ready · Static gate map with public ESI sovereignty data.");

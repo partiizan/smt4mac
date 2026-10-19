@@ -8,57 +8,27 @@
      <StackPanel><TextBlock Text="SMT4Mac" FontWeight="Bold" FontSize="17" LetterSpacing="2"/><TextBlock Text="NEW EDEN INTELLIGENCE" Classes="caption" FontSize="9"/></StackPanel>
     </StackPanel>
     <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="Your region. In focus." FontSize="19" FontWeight="SemiBold"/><TextBlock Name="DataSummary" Classes="muted" FontSize="11"/></StackPanel>
-    <Border Grid.Column="2" Background="#23302A" CornerRadius="5" Padding="12,7" VerticalAlignment="Center"><TextBlock Text="EXPERIMENTAL · 0.10.1" Foreground="#C8D797" FontSize="10" LetterSpacing="1"/></Border>
+    <Border Grid.Column="2" Background="#23302A" CornerRadius="5" Padding="12,7" VerticalAlignment="Center"><TextBlock Text="EXPERIMENTAL · 0.11.0" Foreground="#C8D797" FontSize="10" LetterSpacing="1"/></Border>
    </Grid>
   </Border>
-  <Grid Grid.Row="1" ColumnDefinitions="250,*,340">
-   <Grid.RowDefinitions><RowDefinition Height="*" MinHeight="350"/><RowDefinition Height="8"/><RowDefinition Height="330" MinHeight="280"/></Grid.RowDefinitions>
-   <Border Grid.RowSpan="3" BorderBrush="#243143" BorderThickness="0,0,1,0" Padding="14">
-    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-     <StackPanel Spacing="12">
-      <TextBlock Text="REGION" Classes="caption"/>
-      <ComboBox Name="RegionPicker" HorizontalAlignment="Stretch"/>
-      <ComboBox Name="AdmFilterPicker" HorizontalAlignment="Stretch" ToolTip.Tip="Gold rings highlight systems strictly below the selected ADM. Missing values are excluded."/>
-      <TextBlock Name="AdmFilterSummary" Classes="muted" TextWrapping="Wrap" FontSize="11"/>
-      <TextBox Name="SearchBox" Watermark="Find a system…"/>
-      <ListBox Name="SearchResults" IsVisible="False" MaxHeight="180" FontSize="12"/>
-      <Border Classes="card">
-       <StackPanel Spacing="7"><TextBlock Text="SELECTED SYSTEM" Classes="caption"/><TextBlock Name="SystemName" Text="Select a system" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Name="SystemInfo" Text="Click any node on the map." Classes="muted" TextWrapping="Wrap" FontSize="12"/>
-        <TextBlock Name="AdmDetails" Text="ADM · loading public ESI data…" Foreground="#55DFC5" TextWrapping="Wrap" FontSize="12"/>
-        <Grid ColumnDefinitions="*,*" Margin="0,8,0,0"><Button Name="FromSelected" Content="Set start" FontSize="11" Padding="6,8"/><Button Grid.Column="1" Name="ToSelected" Content="Set end" FontSize="11" Padding="6,8" HorizontalAlignment="Right"/></Grid>
-       </StackPanel>
-      </Border>
-      <TextBlock Text="ROUTE PLANNER" Classes="caption" Margin="0,10,0,0"/>
-      <AutoCompleteBox MinimumPrefixLength="1" FilterMode="StartsWithOrdinal" IsTextCompletionEnabled="False" MaxDropDownHeight="240" Name="FromBox" Watermark="Starting system"/>
-      <AutoCompleteBox MinimumPrefixLength="1" FilterMode="StartsWithOrdinal" IsTextCompletionEnabled="False" MaxDropDownHeight="240" Name="ToBox" Watermark="Destination system"/>
-      <ComboBox Name="RouteMode" HorizontalAlignment="Stretch"/>
-      <ComboBox Name="ShipPicker" HorizontalAlignment="Stretch"/>
-      <NumericUpDown Name="Calibration" Minimum="0" Maximum="5" Value="5" FormatString="'JDC '0"/>
-      <TextBlock Name="JumpRangeLabel" Classes="muted" FontSize="11"/>
-      <CheckBox Name="HighSecOnly" Content="High-security systems only" FontSize="11"/>
-      <Grid ColumnDefinitions="*,Auto"><Button Name="PlanRoute" Content="Plot route" Classes="primary" HorizontalAlignment="Stretch"/><Button Name="ClearRoute" Grid.Column="1" Content="×" Margin="6,0,0,0" ToolTip.Tip="Clear route"/></Grid>
-      <TextBlock Name="RouteSummary" Text="Choose gates, Ansiblex, or capital jumps." Classes="muted" FontSize="11" TextWrapping="Wrap"/>
-      <ListBox Name="RouteList" MaxHeight="220" FontSize="11"/>
-      <Expander Header="Waypoints &amp; exclusions" HorizontalAlignment="Stretch"><StackPanel Spacing="8">      <TextBox Name="WaypointsBox" Watermark="Waypoints, comma separated"/>
-      <TextBox Name="AvoidBox" Watermark="Avoid systems, comma separated"/>
-</StackPanel></Expander>
-      <Expander Header="Ansiblex network" HorizontalAlignment="Stretch"><StackPanel Spacing="8">      <Button Name="ImportBridges" Content="Import Ansiblex CSV…"/>
-      <Button Name="ClearBridges" Content="Clear Ansiblex network"/>
-      <TextBlock Name="BridgeStatus" Text="No Ansiblex network imported" Classes="muted" TextWrapping="Wrap" FontSize="11"/>
-</StackPanel></Expander>
-      <Border BorderBrush="#243143" BorderThickness="0,1,0,0" Padding="0,16,0,0" Margin="0,8,0,0">
-       <StackPanel Spacing="8"><TextBlock Text="MAP KEY" Classes="caption"/><TextBlock FontSize="11"><Run Text="●  High sec     " Foreground="#75D3BF"/><Run Text="●  Low sec" Foreground="#EBC077"/></TextBlock><TextBlock FontSize="11"><Run Text="●  Null sec       " Foreground="#C78C9B"/><Run Text="◎  Intel report" Foreground="#FF997E"/></TextBlock><TextBlock Text="Cyan line  ·  Planned route" Foreground="#55DFC5" FontSize="11"/><TextBlock Text="Ring = recent report, not a verified threat. Clear reports are shown in green." Classes="muted" FontSize="10" TextWrapping="Wrap"/></StackPanel>
-      </Border>
-     </StackPanel>
-    </ScrollViewer>
-   </Border>
-   <Grid Grid.Column="1" RowDefinitions="66,*,74">
-    <Grid ColumnDefinitions="*,Auto" Margin="22,16">
-     <StackPanel><TextBlock Name="RegionTitle" FontSize="22" FontWeight="SemiBold"/><TextBlock Name="RegionSubtitle" Classes="muted" FontSize="11"/></StackPanel>
-     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center"><CheckBox Name="ShowAdm" Content="ADM" IsChecked="True" Margin="0,0,8,0" ToolTip.Tip="Public ESI Activity Defense Multiplier, where applicable"/><Button Name="ZoomOut" Content="−"/><Button Name="ZoomIn" Content="+"/><Button Name="FitMap" Content="Fit"/></StackPanel>
-    </Grid>
+  <Grid Name="Workspace" Grid.Row="1">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="*" MinWidth="600"/><ColumnDefinition Width="8"/><ColumnDefinition Width="340" MinWidth="280" MaxWidth="600"/></Grid.ColumnDefinitions>
+   <Grid.RowDefinitions><RowDefinition Height="*" MinHeight="350"/><RowDefinition Height="8"/><RowDefinition Height="38"/><RowDefinition Height="330" MinHeight="280"/></Grid.RowDefinitions>
+   <Grid RowDefinitions="Auto,*,Auto">
+    <StackPanel Margin="18,10" Spacing="6">
+     <WrapPanel><ComboBox Name="RegionPicker" Width="190" Margin="0,0,8,4"/><ComboBox Name="AdmFilterPicker" Width="180" Margin="0,0,8,4"/>
+      <CheckBox Name="ShowAdm" Content="ADM" IsChecked="True" Margin="0,0,8,0"/><Button Name="ZoomOut" Content="−"/><Button Name="ZoomIn" Content="+"/><Button Name="FitMap" Content="Fit"/>
+      <Button Name="ImportBridges" Content="Ansiblex CSV…" Margin="8,0,0,4" ToolTip.Tip="Import known links; green lines show connections, not verified access."/>
+      <Button Name="ClearBridges" Content="Clear links" Margin="4,0,0,4"/>
+     </WrapPanel>
+     <TextBlock Name="RegionTitle" FontSize="20" FontWeight="SemiBold"/>
+     <TextBlock Name="RegionSubtitle" Classes="muted" FontSize="11"/>
+     <TextBlock Name="AdmFilterSummary" Classes="muted" FontSize="11"/>
+     <TextBlock Name="BridgeStatus" Classes="muted" FontSize="10"/>
+    </StackPanel>
     <local:StarMap Name="Map" Grid.Row="1" ClipToBounds="True"/>
     <StackPanel Grid.Row="2" Margin="22,8" Spacing="5">
+     <WrapPanel><TextBlock Name="SystemName" Text="Select a system" FontWeight="Bold" Margin="0,0,12,0"/><TextBlock Name="SystemInfo" Classes="muted" FontSize="11"/><TextBlock Name="AdmDetails" Foreground="#55DFC5" FontSize="11" Margin="12,0,0,0"/></WrapPanel>
      <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Drag to pan · Scroll to zoom · Click to inspect" Classes="muted" FontSize="11"/><TextBlock Name="MapMode" Grid.Column="1" Text="ADM · PUBLIC ESI" Classes="caption" FontSize="9"/></Grid>
      <Grid ColumnDefinitions="*,Auto"><TextBlock Name="AdmStatus" Text="Connecting to public ESI…" FontSize="10" Foreground="#8C9CB0" VerticalAlignment="Center"/><Button Name="RefreshAdm" Grid.Column="1" Content="Check ADM" FontSize="10" Padding="8,3"/></Grid>
     </StackPanel>
@@ -87,8 +57,10 @@
 
    </Border>
 
-   <GridSplitter Grid.Column="1" Grid.ColumnSpan="2" Grid.Row="1" ResizeDirection="Rows" HorizontalAlignment="Stretch" Background="#243143"/>
-   <Border Name="LivePanel" Grid.Column="1" Grid.ColumnSpan="2" Grid.Row="2" BorderBrush="#243143" BorderThickness="0,1,0,0" Padding="14,10">
+   <GridSplitter Name="IntelDivider" Grid.Column="1" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="#243143"/>
+   <Button Name="ToggleWormholes" Grid.Row="2" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Content="▼ Wormholes &amp; live feeds · click to minimize"/>
+   <Border Name="WormholeDivider" Grid.ColumnSpan="3" Grid.Row="1" Cursor="SizeNorthSouth" HorizontalAlignment="Stretch" Background="#243143"/>
+   <Border Name="LivePanel" Grid.ColumnSpan="3" Grid.Row="3" BorderBrush="#243143" BorderThickness="0,1,0,0" Padding="14,10">
     <Grid ColumnDefinitions="*,220">
      <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="0,0,14,0">
       <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Live · Thera / Turnur connections" FontSize="18" FontWeight="SemiBold"/><Button Grid.Column="1" Name="EveScoutLink" Content="Eve-Scout ↗" FontSize="11" Padding="8,5"/></Grid>

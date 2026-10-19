@@ -101,7 +101,7 @@ public sealed class StarMap : Control
             }
         }
         foreach(var b in Bridges)
-            if(screen.TryGetValue(b.From,out var bp) && screen.TryGetValue(b.To,out var bq))c.DrawLine(new Pen(Brush("#B68AFF"),1.5),bp,bq);
+            if(screen.TryGetValue(b.From,out var bp) && screen.TryGetValue(b.To,out var bq))c.DrawLine(new Pen(Brush("#52D878"),2),bp,bq);
         foreach(var l in RouteLegs.Where(l=>l.Kind!="Gate"))
             if(screen.TryGetValue(l.From.Name,out var lp) && screen.TryGetValue(l.To.Name,out var lq))c.DrawLine(new Pen(Brush("#55DFC5"),3),lp,lq);
         foreach(var n in region.Nodes)

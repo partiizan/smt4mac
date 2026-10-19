@@ -22,23 +22,32 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
     let bitmap=NSBitmapImageRep(cgImage:img)
     let rows=(request.results ?? []).compactMap {observation -> [String:Any]? in
         guard let candidate=observation.topCandidates(1).first else{return nil}
-        let box=observation.boundingBox
+        // Locate the name separately from OCR-recognized standing glyphs such as '=' or '+'.
+        let firstLetter=candidate.string.firstIndex(where:{$0.isLetter || $0.isNumber})
+        guard let start=firstLetter else {return nil}
+        let name=String(candidate.string[start...])
+        let box=(try? candidate.boundingBox(for:start..<candidate.string.endIndex))?.boundingBox ?? observation.boundingBox
         // Inspect the icon area left of a name. Reject a broad blue selection background as ambiguous.
-        let left=0,right=min(img.width-1,max(32,Int(box.minX*Double(img.width))-1))
+        let nameX=Int(box.minX*Double(img.width))
+        let rowHeight=max(8,Int(box.height*Double(img.height)))
+        let left=max(0,nameX-rowHeight*2),right=min(img.width-1,nameX-2)
         let top=max(0,Int((1-box.maxY)*Double(img.height))),bottom=min(img.height-1,Int((1-box.minY)*Double(img.height)))
-        var friendly=0,other=0
+        var friendly=0,other=0,neutral=0
         if right>left && bottom>=top {for y in top...bottom {for x in left...right {
             if let c=bitmap.colorAt(x:x,y:y)?.usingColorSpace(.deviceRGB) {
                 var hue:CGFloat=0,saturation:CGFloat=0,brightness:CGFloat=0,alpha:CGFloat=0
                 c.getHue(&hue,saturation:&saturation,brightness:&brightness,alpha:&alpha)
                 if saturation>0.35 && brightness>0.30 {
                     if hue>=0.25 && hue<=0.88 {friendly+=1} else {other+=1}
-                }
+                } else if saturation<=0.35 && brightness>0.35 {neutral+=1}
             }
         }}}
         let samples=max(1,(right-left+1)*(bottom-top+1))
-        let style=friendly>=4 && other<4 && Double(friendly)/Double(samples)<0.75 ? "Friendly" : "Hostile"
-        return ["name":candidate.string,"confidence":candidate.confidence,"standing":style]
+        let style: String
+        if friendly>=4 && other<4 && Double(friendly)/Double(samples)<0.75 {style="Friendly"}
+        else if friendly+other+neutral>=4 {style="Hostile"}
+        else {style="Ignored"} // Empty badge slot: current player; blank space produces no OCR row.
+        return ["name":name,"confidence":candidate.confidence,"standing":style]
     }
     return rows
 }
@@ -54,7 +63,7 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
                 finish(["ok":true]);return
             }
             if args["action"] as? String == "selftest" {
-                let cases:[(String,NSColor?,String)]=[("green",.green,"Friendly"),("blue",.blue,"Friendly"),("purple",.purple,"Friendly"),("red",.red,"Hostile"),("grey",.gray,"Hostile"),("orange",.orange,"Hostile"),("yellow",.yellow,"Hostile"),("neutral",nil,"Hostile")]
+                let cases:[(String,NSColor?,String)]=[("green",.green,"Friendly"),("blue",.blue,"Friendly"),("purple",.purple,"Friendly"),("red",.red,"Hostile"),("grey",.gray,"Hostile"),("orange",.orange,"Hostile"),("yellow",.yellow,"Hostile"),("self-no-badge",nil,"Ignored"),("dark-blue",NSColor(srgbRed:11/255.0,green:32/255.0,blue:96/255.0,alpha:1),"Friendly"),("dark-green",NSColor(srgbRed:23/255.0,green:96/255.0,blue:25/255.0,alpha:1),"Friendly")]
                 var checked:[String:String]=[:]
                 for (name,color,expected) in cases {
                     let image=NSImage(size:NSSize(width:500,height:100));image.lockFocus()
