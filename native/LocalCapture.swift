@@ -162,7 +162,7 @@ private func localCandidate(_ img:CGImage,_ fragments:[TextFragment]) throws -> 
             let right=min(1,roster.map{$0.box.maxX}.max()!+h*3)
             let bitmap=NSBitmapImageRep(cgImage:img)
             let start=Int((1-roster.last!.box.minY+h*1.5)*Double(img.height))
-            var bottom=0.98
+            var bottom:CGFloat=0.98
             // Prefer the first long horizontal panel separator below the pilot rows.
             if start<img.height-2 {
                 for y in start..<(img.height-2) {
@@ -172,11 +172,11 @@ private func localCandidate(_ img:CGImage,_ fragments:[TextFragment]) throws -> 
                         total+=1
                         if abs(c.redComponent-above.redComponent)>0.08 && abs(c.redComponent-c.blueComponent)<0.15 {hits+=1}
                     }
-                    if total>0 && Double(hits)/Double(total)>0.8 {bottom=Double(y-2)/Double(img.height);break}
+                    if total>0 && Double(hits)/Double(total)>0.8 {bottom=CGFloat(y-2)/CGFloat(img.height);break}
                 }
             }
             guard bottom>1-roster.last!.box.minY else {continue}
-            candidates.append([left,top,right-left,bottom-top])
+            candidates.append([Double(left),Double(top),Double(right-left),Double(bottom-top)])
         }
     }
     guard candidates.count==1 else {throw NSError(domain:"SMT",code:20,userInfo:[NSLocalizedDescriptionKey:candidates.isEmpty ? "Could not confidently locate an English Local header, member count and aligned pilot list." : "More than one possible Local list was found."])}
