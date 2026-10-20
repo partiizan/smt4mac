@@ -106,6 +106,7 @@ public partial class MainWindow
     private void UpdateAlert()
     {
         if(Get<Border>("TrafficLight")==null)return;
+        Get<TextBlock>("PrimaryClientLabel").Text=monitorPrefs.Label;
         var now=DateTimeOffset.UtcNow;
         bool fresh=monitorRunning&&now-lastCapture<CaptureFreshness;
         if(!fresh){if(localPreview!=null)ClearLocalPreview();localTracker.Reset();}

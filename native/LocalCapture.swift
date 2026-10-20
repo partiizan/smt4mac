@@ -280,8 +280,16 @@ private func textFragments(_ img:CGImage) throws -> [TextFragment] {
                     guard !recognized.contains(where:{$0["name"] as? String == count}),recognized.count==3 else {throw NSError(domain:"SMT",code:16,userInfo:[NSLocalizedDescriptionKey:"Vision member count regression: \(recognized)"])}
                 }
                 let detection=NSImage(size:NSSize(width:1000,height:800));detection.lockFocus();NSColor.black.setFill();NSRect(x:0,y:0,width:1000,height:800).fill();detection.unlockFocus()
+                detection.lockFocus()
+                let detectionAttrs:[NSAttributedString.Key:Any]=[.font:NSFont.systemFont(ofSize:22),.foregroundColor:NSColor.white]
+                ("Local" as NSString).draw(at:NSPoint(x:100,y:710),withAttributes:detectionAttrs)
+                ("42" as NSString).draw(at:NSPoint(x:300,y:680),withAttributes:detectionAttrs)
+                ("Friendly Pilot" as NSString).draw(at:NSPoint(x:300,y:640),withAttributes:detectionAttrs)
+                ("Another Pilot" as NSString).draw(at:NSPoint(x:300,y:604),withAttributes:detectionAttrs)
+                detection.unlockFocus()
                 let detectionCG=detection.cgImage(forProposedRect:nil,context:nil,hints:nil)!
                 let detectorRows=[TextFragment(text:"Local",confidence:1,box:CGRect(x:0.1,y:0.9,width:0.05,height:0.02)),TextFragment(text:"42",confidence:1,box:CGRect(x:0.3,y:0.88,width:0.03,height:0.02)),TextFragment(text:"Friendly Pilot",confidence:1,box:CGRect(x:0.3,y:0.84,width:0.15,height:0.02)),TextFragment(text:"Another Pilot",confidence:1,box:CGRect(x:0.3,y:0.80,width:0.16,height:0.02))]
+                _ = try localCandidate(detectionCG,textFragments(detectionCG))
                 let detected=try localCandidate(detectionCG,detectorRows)
                 guard detected[0]<0.3,detected[0]+detected[2]>0.46,detected[1]<0.12,detected[1]+detected[3]>0.2 else {throw NSError(domain:"SMT",code:21)}
                 guard (try? localCandidate(detectionCG,Array(detectorRows.dropFirst())))==nil else {throw NSError(domain:"SMT",code:22)}

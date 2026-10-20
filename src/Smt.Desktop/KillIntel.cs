@@ -30,7 +30,7 @@ public partial class MainWindow
             RefreshIntel();
             if(DateTimeOffset.UtcNow>=nextNames){
                 var ids=CurrentKills().SelectMany(k=>new[]{k.VictimId,k.AllianceId,k.CorporationId}).Where(id=>id>0&&!killNames.ContainsKey(id)).Distinct().Take(1000).ToArray();
-                if(ids.Length>0){nextNames=DateTimeOffset.UtcNow.AddMinutes(2);try{var names=await killApi.JsonPost("https://esi.evetech.net/latest/universe/names/",ids,closing.Token);foreach(var n in names.EnumerateArray())killNames[n.Number("id")]=n.Str("name");}catch(Exception e) when(e is HttpRequestException or System.Text.Json.JsonException or OperationCanceledException){ }}
+                if(ids.Length>0){nextNames=DateTimeOffset.UtcNow.AddMinutes(2);try{var names=await killApi.JsonPost("https://esi.evetech.net/latest/universe/names/",ids,closing.Token);foreach(var n in names.EnumerateArray())killNames[n.Number("id")]=n.Str("name");}catch(Exception e) when(e is HttpRequestException or System.Text.Json.JsonException or OperationCanceledException or InvalidOperationException){ }}
             }
             if(!closing.IsCancellationRequested)RefreshIntel();
         }finally{regionalBusy=false;}

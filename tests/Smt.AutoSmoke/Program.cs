@@ -269,7 +269,7 @@ try
  if(!File.Exists(Path.Combine(SettingsStore.Folder,"clients.json")))throw new Exception("Client profile not persisted");
  var killFixture=new Kill(12345,u.Systems["RF-CN3"].Id,670,DateTimeOffset.UtcNow,4000000,123,456);
  var situationFixture=(Situational)typeof(MainWindow).GetField("situation",binding)!.GetValue(window)!;situationFixture.Kills.Add(killFixture);
- window.FindControl<ComboBox>("RegionPicker")!.SelectedItem=u.Data.Regions.First(r=>r.Name==u.Systems["RF-CN3"].Region);
+ window.FindControl<ComboBox>("RegionPicker")!.SelectedItem=window.FindControl<ComboBox>("RegionPicker")!.ItemsSource!.Cast<Region>().First(r=>r.Name==u.Systems["RF-CN3"].Region);
  window.FindControl<TextBox>("IntelSearch")!.Text="";typeof(MainWindow).GetMethod("RefreshIntel",binding)!.Invoke(window,null);
  if(!window.FindControl<ListBox>("IntelList")!.ItemsSource!.Cast<IntelItem>().Any(i=>i.Kill?.Id==12345))throw new Exception("Kill not merged into intel");
  if(feed.Any(r=>r.Source=="zKillboard"))throw new Exception("Kill leaked into alert reports");

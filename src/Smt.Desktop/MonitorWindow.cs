@@ -131,7 +131,7 @@ public sealed class MonitorWindow:Window
     private async Task AutoDetect()
     {
         if(windows.SelectedItem is not CaptureWindow w){ShowError("Choose an EVE window first.");return;}
-        try{var d=await NativeCapture.Call(new{action="detect",id=w.Id});SetImage(preview,d);baseHeight=800.0*d.GetProperty("height").GetInt32()/d.GetProperty("width").GetInt32();SetZoom(1);previewId=w.Id;localArea=d.GetProperty("roi").EnumerateArray().Select(v=>v.GetDouble()).ToArray();systemArea=null;areaMode.SelectedIndex=0;DrawArea();status.Text="Suggested Local area — REVIEW the highlighted bounds, including empty space for new pilots. Adjust by dragging if needed; Start monitoring confirms the selection. Keep Local visible and its layout fixed.";}
+        try{localArea=null;systemArea=null;DrawArea();var d=await NativeCapture.Call(new{action="detect",id=w.Id});SetImage(preview,d);baseHeight=800.0*d.GetProperty("height").GetInt32()/d.GetProperty("width").GetInt32();SetZoom(1);previewId=w.Id;localArea=d.GetProperty("roi").EnumerateArray().Select(v=>v.GetDouble()).ToArray();systemArea=null;areaMode.SelectedIndex=0;DrawArea();status.Text="Suggested Local area — REVIEW the highlighted bounds, including empty space for new pilots. Adjust by dragging if needed; Start monitoring confirms the selection. Keep Local visible and its layout fixed.";}
         catch(Exception e){ShowError("Auto-detection: "+e.Message+" Load preview and select Local manually.");}
     }
     private void Draw(Point a,Point b){Canvas.SetLeft(selection,Math.Clamp(Math.Min(a.X,b.X),0,overlay.Width));Canvas.SetTop(selection,Math.Clamp(Math.Min(a.Y,b.Y),0,overlay.Height));selection.Width=Math.Min(overlay.Width,Math.Abs(a.X-b.X));selection.Height=Math.Min(overlay.Height,Math.Abs(a.Y-b.Y));}

@@ -58,6 +58,7 @@
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
      <StackPanel Spacing="10">
       <TextBlock Text="Local monitor" FontSize="20" FontWeight="SemiBold"/>
+      <TextBlock Name="PrimaryClientLabel" FontWeight="Bold" TextWrapping="Wrap"/>
       <TextBlock Name="MonitorLocation" Text="Set your current system in settings" FontSize="11" Classes="muted" TextWrapping="Wrap"/>
       <TextBlock Text="LOCAL" Classes="caption"/>
       <Border Name="TrafficLight" Background="#364354" CornerRadius="6" Padding="12"><TextBlock Name="AlertTitle" Text="MONITORING UNAVAILABLE" FontWeight="Bold" TextWrapping="Wrap"/></Border>

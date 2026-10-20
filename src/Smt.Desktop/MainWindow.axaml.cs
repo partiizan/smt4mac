@@ -248,6 +248,6 @@ public partial class MainWindow : Window
         Get<TextBlock>("IntelCount").Text=$"{reports.Count} REPORTS"+(query.Length>0?$" · {matching.Length} MATCHES":"");
         var latest=new Dictionary<string,IntelReport>();
         foreach(var r in reports.OrderBy(r=>r.Time)) foreach(var name in r.Systems) latest[name]=r;
-        Map.Reports=latest; Map.InvalidateVisual();
+        Map.Reports=latest; if(regionalKills!=null&&situation!=null)Map.Kills=CurrentKills(); Map.InvalidateVisual();
     }
 }
