@@ -249,6 +249,35 @@ try
  window.StopMonitor();
  Console.WriteLine("PASS: Automatic red clearing, independent area report, repeated restart and stale-session rejection");
  Console.WriteLine("PASS: Preview stays active with settings closed, independent tags work, stale capture is cleared");
+ var clientA=new ClientMonitor("a",new MonitorPrefs(System:"RF-CN3",Label:"Alpha"));
+ var clientB=new ClientMonitor("b",new MonitorPrefs(System:"P-ZMZV",Label:"Bravo"));
+ clientA.Start(101,[0,0,1,1],null);clientB.Start(102,[0,0,1,1],null);
+ await clientA.Scan(_=>Task.FromResult(hostile),u);await clientA.Scan(_=>Task.FromResult(hostile),u);
+ await clientB.Scan(_=>Task.FromResult(capture),u);
+ if(!clientA.Tracker.Threat||clientB.Tracker.Threat||!clientB.Tracker.Healthy)throw new Exception("Client threat states are not independent");
+ var delayed=new TaskCompletionSource<System.Text.Json.JsonElement>();var pendingClient=clientA.Scan(_=>delayed.Task,u);clientA.Stop();clientA.Start(103,[0,0,1,1],null);delayed.SetResult(hostile);await pendingClient;
+ if(clientA.Tracker.Threat||clientA.LastCapture!=default)throw new Exception("Old additional client session contaminated restart");
+ await clientA.Scan(_=>Task.FromResult(capture),u);
+ if(!clientA.Tracker.Healthy)throw new Exception("Additional client did not recover");
+ await clientB.Scan(_=>Task.FromException<System.Text.Json.JsonElement>(new InvalidOperationException("Minimized")),u);
+ if(clientB.Tracker.Healthy||clientB.LastCapture!=default||!clientA.Tracker.Healthy)throw new Exception("Unavailable window affected another client");
+ clientA.Stop();clientB.Stop();
+ window.FindControl<Button>("AddMonitor")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));await Task.Delay(100);
+ var added=((System.Collections.Generic.List<ClientMonitor>)typeof(MainWindow).GetField("clients",binding)!.GetValue(window)!)[0];
+ added.SettingsWindow?.Close();added.Start(105,[0,0,1,1],null);await added.Scan(_=>Task.FromResult(capture),u);typeof(MainWindow).GetMethod("UpdateClients",binding)!.Invoke(window,null);
+ if(window.FindControl<StackPanel>("ExtraMonitors")!.Children.Count!=1)throw new Exception("Client card missing");
+ if(!File.Exists(Path.Combine(SettingsStore.Folder,"clients.json")))throw new Exception("Client profile not persisted");
+ var killFixture=new Kill(12345,u.Systems["RF-CN3"].Id,670,DateTimeOffset.UtcNow,4000000,123,456);
+ var situationFixture=(Situational)typeof(MainWindow).GetField("situation",binding)!.GetValue(window)!;situationFixture.Kills.Add(killFixture);
+ window.FindControl<ComboBox>("RegionPicker")!.SelectedItem=u.Data.Regions.First(r=>r.Name==u.Systems["RF-CN3"].Region);
+ window.FindControl<TextBox>("IntelSearch")!.Text="";typeof(MainWindow).GetMethod("RefreshIntel",binding)!.Invoke(window,null);
+ if(!window.FindControl<ListBox>("IntelList")!.ItemsSource!.Cast<IntelItem>().Any(i=>i.Kill?.Id==12345))throw new Exception("Kill not merged into intel");
+ if(feed.Any(r=>r.Source=="zKillboard"))throw new Exception("Kill leaked into alert reports");
+ window.FindControl<CheckBox>("ShowIntelKills")!.IsChecked=false;
+ if(window.FindControl<ListBox>("IntelList")!.ItemsSource!.Cast<IntelItem>().Any(i=>i.Kill!=null))throw new Exception("Kill visibility toggle failed");
+ window.FindControl<CheckBox>("ShowIntelKills")!.IsChecked=true;
+ await Task.Delay(150);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v015-multiclient-kills.png");
+ Console.WriteLine("PASS: independent multi-client states, restart fencing, unavailable-window isolation, cards, profile persistence and kill stream isolation");
  Console.WriteLine("Automatic desktop ingestion smoke checks passed on "+System.Runtime.InteropServices.RuntimeInformation.OSDescription);
 }
 catch(Exception error) { failure=error; }

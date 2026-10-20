@@ -10,7 +10,7 @@ using System.Text.RegularExpressions;
 namespace Smt.Desktop;
 
 public sealed record ConditionAlert(bool Voice=false,bool Sound=false,bool Popup=false,string Message="");
-public sealed record MonitorPrefs(string System="",string Coverage="Nearby",string Target="",int Jumps=3,int Minutes=5,bool Voice=false,bool Siren=false,bool Popup=false,string Message="Threat detected",double Volume=.7,ConditionAlert? Yellow=null,ConditionAlert? Red=null,string VoiceIdentifier="")
+public sealed record MonitorPrefs(string System="",string Coverage="Nearby",string Target="",int Jumps=3,int Minutes=5,bool Voice=false,bool Siren=false,bool Popup=false,string Message="Threat detected",double Volume=.7,ConditionAlert? Yellow=null,ConditionAlert? Red=null,string VoiceIdentifier="",string Label="Primary client")
 {
     public ConditionAlert YellowAlert=>Yellow??new(Voice,Siren,Popup,"Caution, hostiles in the nearby area");
     public ConditionAlert RedAlert=>Red??new(Voice,Siren,Popup,"Alert, hostiles entering local");
@@ -45,8 +45,8 @@ public partial class MainWindow
             monitorWindow.Closed+=(_,_)=>monitorWindow=null;monitorWindow.Show(this);
         };
         Get<TextBox>("IntelSearch").TextChanged+=(_,_)=>RefreshIntel();
-        monitorTimer.Tick+=async(_,_)=>{UpdateAlert();await ScanLocal();};monitorTimer.Start();
-        Closed+=(_,_)=>{monitorTimer.Stop();StopMonitor();monitorWindow?.Close();};UpdateAlert();
+        InitializeClients();monitorTimer.Tick+=async(_,_)=>await ScanScheduled();monitorTimer.Start();
+        Closed+=(_,_)=>{monitorTimer.Stop();foreach(var c in clients){c.Stop();c.SettingsWindow?.Close();}StopMonitor();monitorWindow?.Close();};UpdateAlert();
     }
     public void ConfigureMonitor(MonitorPrefs prefs)
     {
@@ -107,7 +107,7 @@ public partial class MainWindow
     {
         if(Get<Border>("TrafficLight")==null)return;
         var now=DateTimeOffset.UtcNow;
-        bool fresh=monitorRunning&&now-lastCapture<TimeSpan.FromSeconds(5);
+        bool fresh=monitorRunning&&now-lastCapture<CaptureFreshness;
         if(!fresh){if(localPreview!=null)ClearLocalPreview();localTracker.Reset();}
         Get<TextBlock>("PreviewPlaceholder").Text=monitorRunning?"Waiting for a fresh capture…":"Start Local monitoring to see your selected area";
         var location=systemArea!=null&&monitorRunning?screenSystem??"":monitorPrefs.System;
@@ -135,10 +135,10 @@ public partial class MainWindow
         prefs??=monitorPrefs;
         var alert=level=="Red"?prefs.RedAlert:prefs.YellowAlert;
         var title=level=="Red"?"RED ALERT":"HOSTILES NEARBY";
-        if(alert.Popup){var popup=new Window{Title=title,Width=440,Height=230,Content=new TextBlock{Text=title+"\n\n"+alert.Message+"\n\n"+detail,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(20)}};popup.Show(this);}
+        if(alert.Popup){var popup=new Window{Title=title,Width=440,Height=230,Content=new TextBlock{Text=title+" · "+prefs.Label+"\n\n"+alert.Message+"\n\n"+detail,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(20)}};popup.Show(this);}
         if(alert.Voice||alert.Sound)
         {
-            try{await NativeCapture.Call(new{action="alert",voice=alert.Voice,siren=alert.Sound,message=alert.Message,volume=prefs.Volume,voiceIdentifier=prefs.VoiceIdentifier});}
+            try{await NativeCapture.Call(new{action="alert",voice=alert.Voice,siren=alert.Sound,message=alert.Message+". "+prefs.Label,volume=prefs.Volume,voiceIdentifier=prefs.VoiceIdentifier});}
             catch(Exception e){SetStatus("Audio unavailable: "+e.Message);}
         }
     }

@@ -10,17 +10,20 @@ public sealed class LiveApi : IDisposable
     private readonly Dictionary<string,DateTimeOffset> backoff=[];
     public LiveApi(HttpMessageHandler? handler=null)
     {
-        http=handler==null?new():new(handler);http.Timeout=TimeSpan.FromSeconds(20);
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("SMT-Mac-Beta/0.9 (+https://github.com/partiizan/smt4mac)");
+        http=handler==null?new(new HttpClientHandler{AutomaticDecompression=DecompressionMethods.GZip|DecompressionMethods.Deflate}):new(handler);http.Timeout=TimeSpan.FromSeconds(20);
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("SMT4Mac/0.15 (+https://github.com/partiizan/smt4mac)");
     }
     public async Task<JsonElement> Json(string url,CancellationToken ct,int cacheSeconds=0)
     { using var doc=JsonDocument.Parse(await Text(url,ct,cacheSeconds)); return doc.RootElement.Clone(); }
-    public async Task<string> Text(string url,CancellationToken ct,int cacheSeconds=0)
+    public async Task<JsonElement> JsonPost(string url,object payload,CancellationToken ct)
+    {using var doc=JsonDocument.Parse(await Text(url,ct,86400,JsonSerializer.Serialize(payload)));return doc.RootElement.Clone();}
+    public async Task<string> Text(string url,CancellationToken ct,int cacheSeconds=0,string? jsonBody=null)
     {
-        var host=new Uri(url).Host; var key=url;
+        var host=new Uri(url).Host; var key=url+(jsonBody??"");
         if(cache.TryGetValue(key,out var hit) && hit.Until>DateTimeOffset.UtcNow)return hit.Body;
         if(backoff.TryGetValue(host,out var until) && until>DateTimeOffset.UtcNow)throw new HttpRequestException($"{host}: retry after {until:HH:mm:ss} UTC.");
-        using var req=new HttpRequestMessage(HttpMethod.Get,url);
+        using var req=new HttpRequestMessage(jsonBody==null?HttpMethod.Get:HttpMethod.Post,url);
+        if(jsonBody!=null)req.Content=new StringContent(jsonBody,System.Text.Encoding.UTF8,"application/json");
         using var response=await http.SendAsync(req,ct);
         if(response.StatusCode==(HttpStatusCode)429 || response.StatusCode==(HttpStatusCode)420 || response.StatusCode==HttpStatusCode.ServiceUnavailable)
             backoff[host]=response.Headers.RetryAfter?.Date ?? DateTimeOffset.UtcNow+(response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(60));

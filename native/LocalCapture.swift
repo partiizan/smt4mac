@@ -146,6 +146,50 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
     }
     return classify(img,fragments)
 }
+private func localCandidate(_ img:CGImage,_ fragments:[TextFragment]) throws -> [Double] {
+    let headers=fragments.filter{$0.confidence>=0.8 && $0.text.range(of:"^Local(?:\\s*\\(?[0-9]+\\)?)?$",options:[.regularExpression,.caseInsensitive]) != nil}
+    var candidates:[[Double]]=[]
+    for header in headers {
+        let h=header.box.height
+        let counts=fragments.filter{$0.confidence>=0.8 && !$0.text.isEmpty && $0.text.count<=6 && $0.text.allSatisfy({$0.isNumber}) && $0.box.minX>=header.box.minX && abs($0.box.midY-header.box.midY)<h*6}
+        for count in counts {
+            let rows=fragments.filter{$0.confidence>=0.75 && $0.box.maxY<count.box.minY && count.box.minY-$0.box.maxY<0.65 && abs($0.box.minX-count.box.minX)<max(h*2,0.015) && !$0.text.contains(">") && !$0.text.contains("[") && $0.text.contains(where:{$0.isLetter})}.sorted{$0.box.midY>$1.box.midY}
+            guard let first=rows.first, count.box.minY-first.box.maxY<h*6 else {continue}
+            var roster=[first]
+            for row in rows.dropFirst(){if roster.last!.box.midY-row.box.midY>h*4 {break};roster.append(row)}
+            guard roster.count>=2 else {continue}
+            let left=max(0,count.box.minX-h*2.5),top=max(0,1-count.box.maxY-h*0.6)
+            let right=min(1,roster.map{$0.box.maxX}.max()!+h*3)
+            let bitmap=NSBitmapImageRep(cgImage:img)
+            let start=Int((1-roster.last!.box.minY+h*1.5)*Double(img.height))
+            var bottom=0.98
+            // Prefer the first long horizontal panel separator below the pilot rows.
+            if start<img.height-2 {
+                for y in start..<(img.height-2) {
+                    var hits=0,total=0
+                    for x in stride(from:Int(left*Double(img.width)),to:Int(right*Double(img.width)),by:4){
+                        guard let c=bitmap.colorAt(x:x,y:y)?.usingColorSpace(.deviceRGB),let above=bitmap.colorAt(x:x,y:y-2)?.usingColorSpace(.deviceRGB) else {continue}
+                        total+=1
+                        if abs(c.redComponent-above.redComponent)>0.08 && abs(c.redComponent-c.blueComponent)<0.15 {hits+=1}
+                    }
+                    if total>0 && Double(hits)/Double(total)>0.8 {bottom=Double(y-2)/Double(img.height);break}
+                }
+            }
+            guard bottom>1-roster.last!.box.minY else {continue}
+            candidates.append([left,top,right-left,bottom-top])
+        }
+    }
+    guard candidates.count==1 else {throw NSError(domain:"SMT",code:20,userInfo:[NSLocalizedDescriptionKey:candidates.isEmpty ? "Could not confidently locate an English Local header, member count and aligned pilot list." : "More than one possible Local list was found."])}
+    return candidates[0]
+}
+private func textFragments(_ img:CGImage) throws -> [TextFragment] {
+    let request=VNRecognizeTextRequest();request.recognitionLevel = .accurate;request.usesLanguageCorrection=false;request.minimumTextHeight=0.005;request.recognitionLanguages=["en-US"]
+    try VNImageRequestHandler(cgImage:img,options:[:]).perform([request])
+    return (request.results ?? []).compactMap {observation in
+        guard let candidate=observation.topCandidates(1).first else {return nil}
+        return TextFragment(text:candidate.string,confidence:candidate.confidence,box:observation.boundingBox)
+    }
+}
 @_cdecl("smt_request") public func smtRequest(_ raw: UnsafePointer<CChar>) {
     let text=String(cString:raw)
     Task { @MainActor in
@@ -235,6 +279,13 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
                     let recognized=try recognize(cg)
                     guard !recognized.contains(where:{$0["name"] as? String == count}),recognized.count==3 else {throw NSError(domain:"SMT",code:16,userInfo:[NSLocalizedDescriptionKey:"Vision member count regression: \(recognized)"])}
                 }
+                let detection=NSImage(size:NSSize(width:1000,height:800));detection.lockFocus();NSColor.black.setFill();NSRect(x:0,y:0,width:1000,height:800).fill();detection.unlockFocus()
+                let detectionCG=detection.cgImage(forProposedRect:nil,context:nil,hints:nil)!
+                let detectorRows=[TextFragment(text:"Local",confidence:1,box:CGRect(x:0.1,y:0.9,width:0.05,height:0.02)),TextFragment(text:"42",confidence:1,box:CGRect(x:0.3,y:0.88,width:0.03,height:0.02)),TextFragment(text:"Friendly Pilot",confidence:1,box:CGRect(x:0.3,y:0.84,width:0.15,height:0.02)),TextFragment(text:"Another Pilot",confidence:1,box:CGRect(x:0.3,y:0.80,width:0.16,height:0.02))]
+                let detected=try localCandidate(detectionCG,detectorRows)
+                guard detected[0]<0.3,detected[0]+detected[2]>0.46,detected[1]<0.12,detected[1]+detected[3]>0.2 else {throw NSError(domain:"SMT",code:21)}
+                guard (try? localCandidate(detectionCG,Array(detectorRows.dropFirst())))==nil else {throw NSError(domain:"SMT",code:22)}
+                guard (try? localCandidate(detectionCG,detectorRows+[detectorRows[0]]))==nil else {throw NSError(domain:"SMT",code:23)}
                 // A tall Local roster with small names must not be discarded by Vision's relative-height filter.
                 let tall=NSImage(size:NSSize(width:500,height:1800));tall.lockFocus()
                 NSColor.black.setFill();NSRect(x:0,y:0,width:500,height:1800).fill()
@@ -255,6 +306,11 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
             let filter=SCContentFilter(desktopIndependentWindow:window)
             let config=SCStreamConfiguration();config.width=Int(window.frame.width*2);config.height=Int(window.frame.height*2);config.showsCursor=false
             let full=try await SCScreenshotManager.captureImage(contentFilter:filter,configuration:config)
+            if args["action"] as? String == "detect" {
+                let roi=try await Task.detached(priority:.utility){try localCandidate(full,textFragments(full))}.value
+                let bitmap=NSBitmapImageRep(cgImage:full)
+                finish(["roi":roi,"width":full.width,"height":full.height,"png":bitmap.representation(using:.png,properties:[:])?.base64EncodedString() ?? ""]);return
+            }
             let roi=args["roi"] as? [Double] ?? [0,0,1,1]
             guard roi.count==4,roi.allSatisfy({$0.isFinite}),roi[0]>=0,roi[1]>=0,roi[2]>0,roi[3]>0,roi[0]+roi[2]<=1.001,roi[1]+roi[3]<=1.001 else {throw NSError(domain:"SMT",code:3,userInfo:[NSLocalizedDescriptionKey:"Invalid capture area"])}
             let rect=CGRect(x:roi[0]*Double(full.width),y:roi[1]*Double(full.height),width:roi[2]*Double(full.width),height:roi[3]*Double(full.height))

@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 namespace Smt.Core;
 public sealed record Wormhole(string Hub,string System,string InSignature,string OutSignature,string Size,DateTimeOffset Expires,string Region="",string SecurityClass="",DateTimeOffset? Updated=null);
 public sealed record Storm(string System,string Name,string Type);
-public sealed record Kill(long Id,long SystemId,long ShipType,DateTimeOffset Time,double Value);
+public sealed record Kill(long Id,long SystemId,long ShipType,DateTimeOffset Time,double Value,long VictimId=0,long AllianceId=0,long CorporationId=0);
 public sealed class Situational(LiveApi api,Universe universe)
 {
     public List<Wormhole> Wormholes {get;private set;}=[];
@@ -75,9 +75,10 @@ public sealed class Situational(LiveApi api,Universe universe)
     }
     public static Kill? ParseKill(JsonElement root)
     {
-        if(!root.TryGetProperty("esi",out var esi) || esi.ValueKind!=JsonValueKind.Object || !esi.TryGetProperty("victim",out var victim) || !DateTimeOffset.TryParse(esi.Str("killmail_time"),out var time))return null;
+        var esi=root.TryGetProperty("esi",out var wrapped)?wrapped:root;
+        if(esi.ValueKind!=JsonValueKind.Object || !esi.TryGetProperty("victim",out var victim) || !DateTimeOffset.TryParse(esi.Str("killmail_time"),out var time))return null;
         var value=root.TryGetProperty("zkb",out var zkb) && zkb.TryGetProperty("totalValue",out var v)?v.GetDouble():0;
-        return new(root.Number("killmail_id"),esi.Number("solar_system_id"),victim.Number("ship_type_id"),time,value);
+        return new(root.Number("killmail_id"),esi.Number("solar_system_id"),victim.Number("ship_type_id"),time,value,victim.Number("character_id"),victim.Number("alliance_id"),victim.Number("corporation_id"));
     }
     public Dictionary<string,int> StormAreas()
     {

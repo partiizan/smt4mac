@@ -8,7 +8,7 @@
      <StackPanel><TextBlock Text="SMT4Mac" FontWeight="Bold" FontSize="17" LetterSpacing="2"/><TextBlock Text="NEW EDEN INTELLIGENCE" Classes="caption" FontSize="9"/></StackPanel>
     </StackPanel>
     <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="Your region. In focus." FontSize="19" FontWeight="SemiBold"/><TextBlock Name="DataSummary" Classes="muted" FontSize="11"/></StackPanel>
-    <Border Grid.Column="2" Background="#23302A" CornerRadius="5" Padding="12,7" VerticalAlignment="Center"><TextBlock Text="EXPERIMENTAL · 0.14.0" Foreground="#C8D797" FontSize="10" LetterSpacing="1"/></Border>
+    <Border Grid.Column="2" Background="#23302A" CornerRadius="5" Padding="12,7" VerticalAlignment="Center"><TextBlock Text="EXPERIMENTAL · 0.15.0" Foreground="#C8D797" FontSize="10" LetterSpacing="1"/></Border>
    </Grid>
   </Border>
   <Grid Name="Workspace" Grid.Row="1">
@@ -44,6 +44,7 @@
       <TextBlock Text="Reports expire from the map after 15 minutes. Only selected channels are ingested." Classes="muted" FontSize="10" TextWrapping="Wrap"/>
 </StackPanel></Expander>
      </StackPanel>
+     <StackPanel Grid.Row="2"><CheckBox Name="ShowIntelKills" Content="Include regional kills (24h)" FontSize="11"/><TextBlock Name="KillIntelStatus" FontSize="10" Classes="muted" TextWrapping="Wrap"/></StackPanel>
      <TextBlock Grid.Row="3" Name="IntelCount" Text="0 REPORTS" Classes="caption" Margin="0,20,0,10"/>
      <ListBox Grid.Row="4" Name="IntelList" Background="Transparent" Padding="0">
       <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="0,6" Spacing="5"><TextBlock Text="{Binding Summary}" FontWeight="SemiBold" Foreground="#E4EDF6" FontSize="12" TextWrapping="Wrap"/><TextBlock Text="{Binding Body}" Foreground="#A6B5C8" FontSize="11" TextWrapping="Wrap"/><TextBlock Text="{Binding Meta}" Foreground="#77899F" FontSize="10" TextWrapping="Wrap"/></StackPanel></DataTemplate></ListBox.ItemTemplate>
@@ -72,6 +73,8 @@
       <TextBlock Name="CaptureStatus" FontSize="10" Classes="muted" TextWrapping="Wrap"/>
       <TextBlock Name="TriggerDetail" FontSize="11" Foreground="#FFABB4" TextWrapping="Wrap" IsVisible="False"/>
       <Button Name="MonitorSetup" Content="Local monitor &amp; alert settings…" FontSize="11" HorizontalAlignment="Stretch"/>
+      <Button Name="AddMonitor" Content="+ Add EVE client monitor" HorizontalAlignment="Stretch"/>
+      <StackPanel Name="ExtraMonitors"/>
       <Border BorderBrush="#243143" BorderThickness="0,1,0,0" Padding="0,12,0,0">
        <StackPanel Spacing="7"><TextBlock Text="ALERT CONDITIONS" Classes="caption"/><TextBlock Text="Green · Local clear" Foreground="#65D7A4" FontSize="11"/><TextBlock Text="Yellow · Threats nearby" Foreground="#EAC65A" FontSize="11"/><TextBlock Text="Red · Immediate local threat" Foreground="#FF8F9E" FontSize="11"/><TextBlock Text="Visible roster only. Status updates automatically. Keep the selected Local window fixed." TextWrapping="Wrap" Classes="muted" FontSize="10"/></StackPanel>
       </Border>
@@ -108,12 +111,10 @@
       </Grid>
       <StackPanel Grid.Row="4" Margin="0,6,0,0" Spacing="2"><TextBlock Name="WormholeCount" Classes="muted" FontSize="10"/><TextBlock Name="WormholeStatus" Classes="muted" FontSize="10" TextWrapping="Wrap"/><TextBlock Text="Verify expiry, mass and ship restrictions in game. Times are estimates." Classes="muted" FontSize="10"/></StackPanel>
      </Grid>
-     <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,*,Auto">
-      <TextBlock Text="RECENT KILLS · REGION" Classes="caption"/>
-      <ListBox Grid.Row="1" Name="KillList" FontSize="11" Background="Transparent" Margin="0,5" ToolTip.Tip="Public reports since connection; double-click a kill to open zKillboard."/>
-      <TextBlock Grid.Row="2" Text="METALIMINAL STORMS" Classes="caption"/>
-      <ListBox Grid.Row="3" Name="StormList" FontSize="11" Background="Transparent" Margin="0,5"/>
-      <TextBlock Grid.Row="4" Name="FeedStatus" Text="Connecting…" FontSize="9" Classes="muted" TextWrapping="Wrap"/>
+     <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto">
+      <TextBlock Grid.Row="0" Text="METALIMINAL STORMS" Classes="caption"/>
+      <ListBox Grid.Row="1" Name="StormList" FontSize="11" Background="Transparent" Margin="0,5"/>
+      <TextBlock Grid.Row="2" Name="FeedStatus" Text="Connecting…" FontSize="9" Classes="muted" TextWrapping="Wrap"/>
      </Grid>
     </Grid>
    </Border>

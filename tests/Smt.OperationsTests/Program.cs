@@ -37,6 +37,15 @@ Check(kill?.SystemId==30000142 && kill.Value==500 && kill.ShipType==670,"R2Z2 en
 var rateHandler=new Stub(req=>new(HttpStatusCode.TooManyRequests){Content=new StringContent("{}")});using var rateApi=new LiveApi(rateHandler);
 for(int i=0;i<2;i++)try{await rateApi.Json("https://esi.evetech.net/test",default);}catch(HttpRequestException){}
 Check(rateHandler.Calls==1,"Rate limit blocks repeated requests during backoff");
+var now=DateTimeOffset.UtcNow;
+var regionName=u.Systems["P-ZMZV"].Region;
+var regionalFixture=JsonSerializer.SerializeToElement(new[]{new{killmail_id=987L,solar_system_id=u.Systems["P-ZMZV"].Id,killmail_time=now.ToString("O"),victim=new{ship_type_id=670,character_id=123,alliance_id=456},zkb=new{totalValue=5000}}});
+var restKill=Situational.ParseKill(regionalFixture[0])!;
+Check(restKill.VictimId==123&&restKill.AllianceId==456,"REST killmail victim metadata parsed");
+Check(RegionalKills.Merge([restKill],[restKill,restKill with{Id=989,Time=now.AddDays(-2)},restKill with{Id=990,SystemId=u.Systems["Jita"].Id}],u,regionName,now).Length==1,"Regional kill merge deduplicates, expires old kills and excludes other regions");
+var regionHandler=new Stub(req=>new(HttpStatusCode.OK){Content=new StringContent(req.RequestUri!.Host=="zkillboard.com"?regionalFixture.GetRawText():req.RequestUri.AbsolutePath.Contains("constellations")?"{\"region_id\":10000050}":"{\"constellation_id\":20000001}")});
+using var regionApi=new LiveApi(regionHandler);var regional=new RegionalKills(regionApi,u);await regional.Refresh(regionName,default);await regional.Refresh(regionName,default);
+Check(regional.For(regionName).Count==1&&regionHandler.Calls==3,"Regional backfill resolves region and caches repeated checks");
 Console.WriteLine($"{passed} operations checks passed.");
 if(args.Contains("--live"))
 {

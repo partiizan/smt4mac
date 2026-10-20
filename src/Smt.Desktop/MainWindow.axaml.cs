@@ -15,7 +15,7 @@ public sealed record RouteItem(int Index, StarSystem System)
 {
     public override string ToString() => $"{Index:00}   {System.Name}   {System.Security:0.0}";
 }
-public sealed record IntelItem(IntelReport Report)
+public sealed record IntelItem(IntelReport Report,Kill? Kill=null)
 {
     public string Summary => string.Join(" · ", Report.Systems) + (Report.Clear ? " / CLEAR REPORTED" : " / REPORT");
     public string Body => Report.Message;
@@ -84,7 +84,7 @@ public partial class MainWindow : Window
         InitializeOperations();
         InitializeMonitoring();
         InitializeLayout();
-        Get<ListBox>("IntelList").ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<IntelItem>((item,_)=>item==null?new TextBlock():IntelView(item.Report,Get<TextBox>("IntelSearch").Text?.Trim()??""));
+        Get<ListBox>("IntelList").ItemTemplate=new Avalonia.Controls.Templates.FuncDataTemplate<IntelItem>((item,_)=>item==null?new TextBlock():item.Kill is {} kill?KillView(kill):IntelView(item.Report,Get<TextBox>("IntelSearch").Text?.Trim()??""));
         Closed+=(_,_)=> { timer.Stop(); closing.Cancel(); sovereignty.Dispose(); StopOperations(); Save(); };
         UpdateWatchState(); SetStatus("Ready · Static gate map with public ESI sovereignty data.");
     }
@@ -241,8 +241,10 @@ public partial class MainWindow : Window
     private void RefreshIntel()
     {
         var query=Get<TextBox>("IntelSearch").Text?.Trim()??"";
-        var matching=reports.Where(r=>query.Length==0 || (r.Message+" "+r.Speaker+" "+r.Source).Contains(query,StringComparison.OrdinalIgnoreCase)).OrderByDescending(r=>r.Time).Select(r=>new IntelItem(r)).ToArray();
+        var killEntries=Get<CheckBox>("ShowIntelKills").IsChecked==true?CurrentKills().Select(k=>new IntelItem(new IntelReport(k.Time,"zKillboard",KillDescription(k),[universe.ById[k.SystemId].Name],false,"zKillboard"),k)):Enumerable.Empty<IntelItem>();
+        var matching=reports.Where(r=>query.Length==0 || (r.Message+" "+r.Speaker+" "+r.Source).Contains(query,StringComparison.OrdinalIgnoreCase)).OrderByDescending(r=>r.Time).Select(r=>new IntelItem(r)).Concat(killEntries.Where(k=>query.Length==0||(k.Report.Message+" "+string.Join(" ",k.Report.Systems)+" zKillboard KILL").Contains(query,StringComparison.OrdinalIgnoreCase))).OrderByDescending(i=>i.Report.Time).ToArray();
         Get<ListBox>("IntelList").ItemsSource=matching;
+        Get<TextBlock>("KillIntelStatus").Text=regionalKills==null?"Kills waiting…":regionalKills.Status(CurrentRegion)+" · live feed adds new reports";
         Get<TextBlock>("IntelCount").Text=$"{reports.Count} REPORTS"+(query.Length>0?$" · {matching.Length} MATCHES":"");
         var latest=new Dictionary<string,IntelReport>();
         foreach(var r in reports.OrderBy(r=>r.Time)) foreach(var name in r.Systems) latest[name]=r;
