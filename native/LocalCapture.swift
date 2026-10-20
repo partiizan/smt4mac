@@ -147,14 +147,30 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
     return classify(img,fragments)
 }
 private func localCandidate(_ img:CGImage,_ fragments:[TextFragment]) throws -> [Double] {
-    let headerPattern = #"^\s*Local(?:\s*(?:\[\s*[0-9]+\s*\]|\(\s*[0-9]+\s*\)|[0-9]+))?\s*$"#
-    let headers=fragments.filter{$0.confidence>=0.8 && $0.text.range(of:headerPattern,options:[.regularExpression,.caseInsensitive]) != nil}
+    let headerPattern = #"^\s*Local(?:\s*(?:\[\s*[0-9]+\s*\]|\(\s*[0-9]+\s*\)|[0-9]+))?\s*[+×]?\s*$"#
+    let headers=fragments.filter{$0.confidence>=0.5 && $0.text.range(of:headerPattern,options:[.regularExpression,.caseInsensitive]) != nil}
     var candidates:[[Double]]=[]
     for header in headers {
         let h=header.box.height
-        let counts=fragments.filter{$0.confidence>=0.8 && !$0.text.isEmpty && $0.text.count<=6 && $0.text.allSatisfy({$0.isNumber}) && $0.box.minX>=header.box.minX && abs($0.box.midY-header.box.midY)<h*6}
-        for count in counts {
-            let rows=fragments.filter{$0.confidence>=0.75 && $0.box.maxY<count.box.minY && count.box.minY-$0.box.maxY<0.65 && abs($0.box.minX-count.box.minX)<max(h*2,0.015) && !$0.text.contains(">") && !$0.text.contains("[") && $0.text.contains(where:{$0.isLetter})}.sorted{$0.box.midY>$1.box.midY}
+        // Detection geometry is permissive; monitoring still applies its original confidence rules.
+        let counts=fragments.filter{$0.confidence>=0.4 && $0.text.range(of:#"^\s*[^\p{L}\p{N}]*[0-9]{1,6}\s*$"#,options:.regularExpression) != nil && $0.box.minX>=header.box.minX && abs($0.box.midY-header.box.midY)<h*8}
+        var anchors=counts
+        do {
+            // A member icon can obscure the count. Require a substantial aligned column
+            // with real standing badges before proposing a roster without a readable count.
+            let possible=fragments.filter{$0.confidence>=0.5 && $0.box.maxY<header.box.minY && header.box.minY-$0.box.maxY<0.7 && $0.box.minX>header.box.maxX && !$0.text.contains(">") && !$0.text.contains("[") && $0.text.contains(where:{$0.isLetter})}
+            for first in possible where header.box.minY-first.box.maxY<h*10 {
+                if anchors.contains(where:{abs($0.box.minX-first.box.minX)<h*2}){continue}
+                let column=possible.filter{abs($0.box.minX-first.box.minX)<max(h*2,0.015)}.sorted{$0.box.midY>$1.box.midY}
+                guard column.count>=3 else {continue}
+                let badged=classify(img,column).filter{["Friendly","Hostile"].contains($0["standing"] as? String ?? "")}
+                guard badged.count>=3 else {continue}
+                let box=CGRect(x:first.box.minX,y:column[0].box.maxY+h,width:h,height:h*0.5)
+                anchors.append(TextFragment(text:"inferred roster",confidence:1,box:box))
+            }
+        }
+        for count in anchors {
+            let rows=fragments.filter{$0.confidence>=0.5 && $0.box.maxY<count.box.minY && count.box.minY-$0.box.maxY<0.65 && abs($0.box.minX-count.box.minX)<max(h*2,0.015) && !$0.text.contains(">") && !$0.text.contains("[") && $0.text.contains(where:{$0.isLetter})}.sorted{$0.box.midY>$1.box.midY}
             guard let first=rows.first, count.box.minY-first.box.maxY<h*6 else {continue}
             var roster=[first]
             for row in rows.dropFirst(){if roster.last!.box.midY-row.box.midY>h*4 {break};roster.append(row)}
@@ -180,15 +196,17 @@ private func localCandidate(_ img:CGImage,_ fragments:[TextFragment]) throws -> 
             candidates.append([Double(left),Double(top),Double(right-left),Double(bottom-top)])
         }
     }
-    guard candidates.count==1 else {throw NSError(domain:"SMT",code:20,userInfo:[NSLocalizedDescriptionKey:candidates.isEmpty ? "Could not confidently locate an English Local header, member count and aligned pilot list." : "More than one possible Local list was found."])}
+    guard candidates.count==1 else {throw NSError(domain:"SMT",code:20,userInfo:[NSLocalizedDescriptionKey:candidates.isEmpty ? "Local detection found \(headers.count) header(s) among \(fragments.count) text fragments, but no verified member column. Keep Local and its standing icons visible; use manual selection if needed." : "More than one possible Local list was found."])}
     return candidates[0]
 }
 private func textFragments(_ img:CGImage) throws -> [TextFragment] {
-    let request=VNRecognizeTextRequest();request.recognitionLevel = .accurate;request.usesLanguageCorrection=false;request.minimumTextHeight=0.005;request.recognitionLanguages=["en-US"]
+    let request=VNRecognizeTextRequest();request.recognitionLevel = .accurate;request.usesLanguageCorrection=false;request.minimumTextHeight=0.002;request.recognitionLanguages=["en-US"]
     try VNImageRequestHandler(cgImage:img,options:[:]).perform([request])
     return (request.results ?? []).compactMap {observation in
-        guard let candidate=observation.topCandidates(1).first else {return nil}
-        return TextFragment(text:candidate.string,confidence:candidate.confidence,box:observation.boundingBox)
+        guard let candidate=observation.topCandidates(1).first,
+              let start=candidate.string.firstIndex(where:{$0.isLetter || $0.isNumber}) else {return nil}
+        let box=(try? candidate.boundingBox(for:start..<candidate.string.endIndex))?.boundingBox ?? observation.boundingBox
+        return TextFragment(text:String(candidate.string[start...]),confidence:candidate.confidence,box:box)
     }
 }
 @_cdecl("smt_request") public func smtRequest(_ raw: UnsafePointer<CChar>) {
@@ -286,12 +304,14 @@ private func textFragments(_ img:CGImage) throws -> [TextFragment] {
                 ("Local [29]" as NSString).draw(at:NSPoint(x:100,y:710),withAttributes:detectionAttrs)
                 ("28" as NSString).draw(at:NSPoint(x:650,y:680),withAttributes:detectionAttrs)
                 ("Friendly Pilot" as NSString).draw(at:NSPoint(x:650,y:640),withAttributes:detectionAttrs)
-                ("Another Pilot" as NSString).draw(at:NSPoint(x:650,y:604),withAttributes:detectionAttrs)
+                ("Another Pilot" as NSString).draw(at:NSPoint(x:650,y:600),withAttributes:detectionAttrs)
+                ("Third Pilot" as NSString).draw(at:NSPoint(x:650,y:560),withAttributes:detectionAttrs)
+                for y in [643,603,563] {NSColor.blue.setFill();NSRect(x:630,y:y,width:12,height:14).fill()}
                 detection.unlockFocus()
                 let detectionCG=detection.cgImage(forProposedRect:nil,context:nil,hints:nil)!
                 let detectorRows=[TextFragment(text:"Local",confidence:1,box:CGRect(x:0.1,y:0.9,width:0.05,height:0.02)),TextFragment(text:"42",confidence:1,box:CGRect(x:0.3,y:0.88,width:0.03,height:0.02)),TextFragment(text:"Friendly Pilot",confidence:1,box:CGRect(x:0.3,y:0.84,width:0.15,height:0.02)),TextFragment(text:"Another Pilot",confidence:1,box:CGRect(x:0.3,y:0.80,width:0.16,height:0.02))]
                 _ = try localCandidate(detectionCG,textFragments(detectionCG))
-                for label in ["Local", "Local [29]", "Local[29]", "Local (29)", "Local 29", " Local [ 29 ] "] {
+                for label in ["Local", "Local [1]", "Local [22]", "Local [2500]", "Local[29]", "Local (29)", "Local 29", " Local [ 29 ] ", "Local [22] +"] {
                     let heading=TextFragment(text:label,confidence:1,box:detectorRows[0].box)
                     _ = try localCandidate(detectionCG,[heading]+Array(detectorRows.dropFirst()))
                 }
@@ -299,6 +319,11 @@ private func textFragments(_ img:CGImage) throws -> [TextFragment] {
                     let heading=TextFragment(text:label,confidence:1,box:detectorRows[0].box)
                     guard (try? localCandidate(detectionCG,[heading]+Array(detectorRows.dropFirst())))==nil else {throw NSError(domain:"SMT",code:24,userInfo:[NSLocalizedDescriptionKey:"False Local heading: \(label)"])}
                 }
+                let fallbackRows=[detectorRows[0]]+[0.80,0.75,0.70].enumerated().map {index,y in TextFragment(text:"Pilot \(index)",confidence:1,box:CGRect(x:0.65,y:y,width:0.15,height:0.025))}
+                _ = try localCandidate(detectionCG,fallbackRows)
+                guard (try? localCandidate(detectionCG,Array(fallbackRows.prefix(3))))==nil else {throw NSError(domain:"SMT",code:25,userInfo:[NSLocalizedDescriptionKey:"Countless roster accepted without three badge rows"])}
+                let iconCount=TextFragment(text:"♟ 22",confidence:0.5,box:detectorRows[1].box)
+                _ = try localCandidate(detectionCG,[detectorRows[0],iconCount]+Array(detectorRows.dropFirst(2)))
                 let detected=try localCandidate(detectionCG,detectorRows)
                 guard detected[0]<0.3,detected[0]+detected[2]>0.46,detected[1]<0.12,detected[1]+detected[3]>0.2 else {throw NSError(domain:"SMT",code:21)}
                 guard (try? localCandidate(detectionCG,Array(detectorRows.dropFirst())))==nil else {throw NSError(domain:"SMT",code:22)}
