@@ -1,6 +1,6 @@
-# SMT4Mac v0.15.0
+# SMT4Mac v0.15.1
 
-See [v0.15.0 changes and monitoring behavior](RELEASE-v0.15.0.md). Native screen monitoring requires macOS 14+. ESI character login remains deferred.
+See [v0.15.1 changes and monitoring behavior](RELEASE-v0.15.1.md). Native screen monitoring requires macOS 14+. ESI character login remains deferred.
 
 # SMT4Mac — Native macOS client
 
@@ -52,7 +52,7 @@ After installing, the app rereads recent history automatically. Your earlier tes
 
 ## Download
 
-[Download v0.15.0 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.15.0/SMT4Mac-0.15.0-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
+[Download v0.15.1 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.15.1/SMT4Mac-0.15.1-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
 
 The ZIP includes the compiled app and corresponding source. The installed app is named **SMT4Mac.app**.
 

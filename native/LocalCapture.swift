@@ -147,7 +147,8 @@ private func recognize(_ img: CGImage) throws -> [[String:Any]] {
     return classify(img,fragments)
 }
 private func localCandidate(_ img:CGImage,_ fragments:[TextFragment]) throws -> [Double] {
-    let headers=fragments.filter{$0.confidence>=0.8 && $0.text.range(of:"^Local(?:\\s*\\(?[0-9]+\\)?)?$",options:[.regularExpression,.caseInsensitive]) != nil}
+    let headerPattern = #"^\s*Local(?:\s*(?:\[\s*[0-9]+\s*\]|\(\s*[0-9]+\s*\)|[0-9]+))?\s*$"#
+    let headers=fragments.filter{$0.confidence>=0.8 && $0.text.range(of:headerPattern,options:[.regularExpression,.caseInsensitive]) != nil}
     var candidates:[[Double]]=[]
     for header in headers {
         let h=header.box.height
@@ -282,14 +283,22 @@ private func textFragments(_ img:CGImage) throws -> [TextFragment] {
                 let detection=NSImage(size:NSSize(width:1000,height:800));detection.lockFocus();NSColor.black.setFill();NSRect(x:0,y:0,width:1000,height:800).fill();detection.unlockFocus()
                 detection.lockFocus()
                 let detectionAttrs:[NSAttributedString.Key:Any]=[.font:NSFont.systemFont(ofSize:22),.foregroundColor:NSColor.white]
-                ("Local" as NSString).draw(at:NSPoint(x:100,y:710),withAttributes:detectionAttrs)
-                ("42" as NSString).draw(at:NSPoint(x:300,y:680),withAttributes:detectionAttrs)
-                ("Friendly Pilot" as NSString).draw(at:NSPoint(x:300,y:640),withAttributes:detectionAttrs)
-                ("Another Pilot" as NSString).draw(at:NSPoint(x:300,y:604),withAttributes:detectionAttrs)
+                ("Local [29]" as NSString).draw(at:NSPoint(x:100,y:710),withAttributes:detectionAttrs)
+                ("28" as NSString).draw(at:NSPoint(x:650,y:680),withAttributes:detectionAttrs)
+                ("Friendly Pilot" as NSString).draw(at:NSPoint(x:650,y:640),withAttributes:detectionAttrs)
+                ("Another Pilot" as NSString).draw(at:NSPoint(x:650,y:604),withAttributes:detectionAttrs)
                 detection.unlockFocus()
                 let detectionCG=detection.cgImage(forProposedRect:nil,context:nil,hints:nil)!
                 let detectorRows=[TextFragment(text:"Local",confidence:1,box:CGRect(x:0.1,y:0.9,width:0.05,height:0.02)),TextFragment(text:"42",confidence:1,box:CGRect(x:0.3,y:0.88,width:0.03,height:0.02)),TextFragment(text:"Friendly Pilot",confidence:1,box:CGRect(x:0.3,y:0.84,width:0.15,height:0.02)),TextFragment(text:"Another Pilot",confidence:1,box:CGRect(x:0.3,y:0.80,width:0.16,height:0.02))]
                 _ = try localCandidate(detectionCG,textFragments(detectionCG))
+                for label in ["Local", "Local [29]", "Local[29]", "Local (29)", "Local 29", " Local [ 29 ] "] {
+                    let heading=TextFragment(text:label,confidence:1,box:detectorRows[0].box)
+                    _ = try localCandidate(detectionCG,[heading]+Array(detectorRows.dropFirst()))
+                }
+                for label in ["Local chat report", "Local [29", "Corporation [29]"] {
+                    let heading=TextFragment(text:label,confidence:1,box:detectorRows[0].box)
+                    guard (try? localCandidate(detectionCG,[heading]+Array(detectorRows.dropFirst())))==nil else {throw NSError(domain:"SMT",code:24,userInfo:[NSLocalizedDescriptionKey:"False Local heading: \(label)"])}
+                }
                 let detected=try localCandidate(detectionCG,detectorRows)
                 guard detected[0]<0.3,detected[0]+detected[2]>0.46,detected[1]<0.12,detected[1]+detected[3]>0.2 else {throw NSError(domain:"SMT",code:21)}
                 guard (try? localCandidate(detectionCG,Array(detectorRows.dropFirst())))==nil else {throw NSError(domain:"SMT",code:22)}
