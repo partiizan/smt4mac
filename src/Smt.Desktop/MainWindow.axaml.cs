@@ -146,7 +146,7 @@ public partial class MainWindow : Window
         {
             selected=null;Map.Selected=null;
             Get<TextBlock>("SystemName").Text="Select a system";
-            Get<TextBlock>("SystemInfo").Text="Click any node on the map.";
+            Get<TextBlock>("SystemInfo").Text="Click any node on the map.";UpdateFacilityPane();
             UpdateAdmDetails();
         }
         Get<TextBlock>("RegionTitle").Text=region.Name;
@@ -162,6 +162,7 @@ public partial class MainWindow : Window
             if(region!=null) Get<ComboBox>("RegionPicker").SelectedItem=region;
         }
         selected=sys.Name; Map.Selected=sys.Name;
+        UpdateFacilityPane();_=LoadNpcStations(sys.Id,closing.Token);
         Get<TextBlock>("SystemName").Text=sys.Name;
         Get<TextBlock>("SystemInfo").Text=$"{sys.Region}\nSecurity {sys.Security:0.00} · {sys.Jumps.Length} gates" + (sys.Station?"\nNPC station present":"");
         UpdateAdmDetails();

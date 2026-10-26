@@ -23,6 +23,8 @@ public sealed class StarMap : Control
     public Dictionary<string,int> StormAreas { get; set; } = [];
     public double? AdmThreshold { get; set; }
     public int FacilityMode {get;set;}
+    public Func<string,string>? FacilityTooltip {get;set;}
+    private string? hovered;
     public IReadOnlyDictionary<long,int> StructureCounts {get;set;}=new Dictionary<long,int>();
     public bool ShowAdm { get; set; } = true;
     public bool AdmStale { get; set; }
@@ -63,7 +65,14 @@ public sealed class StarMap : Control
     }
     protected override void OnPointerMoved(PointerEventArgs e)
     {
-        if (!dragging) return;
+        if (!dragging)
+        {
+            var nearest=screen.OrderBy(k=>Distance(k.Value,e.GetPosition(this))).FirstOrDefault();
+            var name=nearest.Key!=null&&Distance(nearest.Value,e.GetPosition(this))<18?nearest.Key:null;
+            if(name!=hovered){hovered=name;ToolTip.SetTip(this,name==null?null:FacilityTooltip?.Invoke(name)??name);ToolTip.SetIsOpen(this,name!=null);}
+            return;
+        }
+        ToolTip.SetIsOpen(this,false);
         var p=e.GetPosition(this); if (Distance(p,pressed) > 4) moved=true;
         if (moved) { offset += p-last; InvalidateVisual(); } last=p;
     }
@@ -75,6 +84,7 @@ public sealed class StarMap : Control
         var p=e.GetPosition(this); var nearest=screen.OrderBy(k=>Distance(k.Value,p)).FirstOrDefault();
         if (nearest.Key != null && Distance(nearest.Value,p) < 18) { Selected=nearest.Key; SystemSelected?.Invoke(nearest.Key); InvalidateVisual(); }
     }
+    protected override void OnPointerExited(PointerEventArgs e){hovered=null;ToolTip.SetIsOpen(this,false);base.OnPointerExited(e);}
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e) => dragging=false;
     private static void Text(DrawingContext c, string text, Point position, IBrush color, double size=11)
     {

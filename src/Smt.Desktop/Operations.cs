@@ -39,7 +39,7 @@ public partial class MainWindow
         operationTimer.Tick+=(_,_)=>{RefreshWormholeRows();_ = RefreshLive();_ = RefreshRegionalKills();_ = RefreshFacilities();};
         Opened+=(_,_)=>{operationTimer.Start();_ = RefreshLive();_ = RefreshRegionalKills();_ = RefreshFacilities();};
     }
-    private void StopOperations(){operationTimer.Stop();liveApi.Dispose();killApi.Dispose();facilityApi.Dispose();}
+    private void StopOperations(){operationTimer.Stop();liveApi.Dispose();killApi.Dispose();facilityApi.Dispose();structureSession.Dispose();}
     private void PersistBridges(Bridge[] value)
     {
         Directory.CreateDirectory(SettingsStore.Folder);var path=Path.Combine(SettingsStore.Folder,"ansiblex.csv");File.WriteAllText(path+".tmp",string.Join('\n',value.Select(b=>b.From+","+b.To)));File.Move(path+".tmp",path,true);

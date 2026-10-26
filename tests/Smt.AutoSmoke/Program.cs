@@ -290,7 +290,15 @@ try
  var facilityFilter=window.FindControl<ComboBox>("FacilityFilter")!;facilityFilter.SelectedIndex=3;
  if(SettingsStore.Load().FacilityMode!=3||!window.FindControl<TextBlock>("FacilityStatus")!.IsVisible)throw new Exception("Facility filter not persisted / visible");
  if(!window.FindControl<TextBlock>("FacilityStatus")!.Text!.Contains("1 known structures"))throw new Exception("Known Upwell count not applied to selected region");
- await Task.Delay(150);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v016-facilities.png");
+ var npcFixture=(Dictionary<long,NpcStation[]>)typeof(MainWindow).GetField("npcStations",binding)!.GetValue(window)!;
+ npcFixture[u.Systems["P-ZMZV"].Id]=new[]{new NpcStation(60000001,u.Systems["P-ZMZV"].Id,1529,"Fixture NPC Station",DateTimeOffset.UtcNow)};
+ window.SelectSystem("P-ZMZV");
+ if(!window.FindControl<TextBlock>("SelectedFacilityText")!.Text!.Contains("Fixture NPC Station") || !window.FindControl<TextBlock>("SelectedFacilityText")!.Text!.Contains("Fixture Fortizar"))throw new Exception("Named facilities missing from system details");
+ if(!window.FindControl<StarMap>("Map")!.FacilityTooltip!("P-ZMZV").Contains("1 NPC stations"))throw new Exception("Named facility tooltip missing count");
+ window.FindControl<Button>("StructureConnect")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));await Task.Delay(100);
+ var connector=(Window?)typeof(MainWindow).GetField("structureDialog",binding)!.GetValue(window);if(connector==null)throw new Exception("ESI connector inaccessible");connector.Close();
+ await Task.Delay(150);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v017-facilities.png");
+
  facilityFilter.SelectedIndex=0;if(window.FindControl<TextBlock>("FacilityStatus")!.IsVisible)throw new Exception("Facility filter did not turn off");
  Console.WriteLine("PASS: facility overlay selector persists and switches off");
  Console.WriteLine("Automatic desktop ingestion smoke checks passed on "+System.Runtime.InteropServices.RuntimeInformation.OSDescription);
