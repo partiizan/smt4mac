@@ -46,6 +46,11 @@ Check(RegionalKills.Merge([restKill],[restKill,restKill with{Id=989,Time=now.Add
 var regionHandler=new Stub(req=>new(HttpStatusCode.OK){Content=new StringContent(req.RequestUri!.Host=="zkillboard.com"?regionalFixture.GetRawText():req.RequestUri.AbsolutePath.Contains("constellations")?"{\"region_id\":10000050}":"{\"constellation_id\":20000001}")});
 using var regionApi=new LiveApi(regionHandler);var regional=new RegionalKills(regionApi,u);await regional.Refresh(regionName,default);await regional.Refresh(regionName,default);
 Check(regional.For(regionName).Count==1&&regionHandler.Calls==3,"Regional backfill resolves region and caches repeated checks");
+var structureData=JsonSerializer.SerializeToElement(new Dictionary<string,object>{["100000000001"]=new{solar_system_id=u.Systems["P-ZMZV"].Id,type_id=35832,name="Test Astrahus",is_gettable_structure=true,last_structure_get="2026-10-26T12:00:00Z"},["100000000002"]=new{solar_system_id=u.Systems["P-ZMZV"].Id,type_id=35835,name="Test Athanor",is_gettable_structure=false},["100000000003"]=new{name="Unresolved structure"},["100000000004"]=new{solar_system_id=99999999,type_id=35832,name="Unknown system"}});
+var facilities=Facilities.Parse(structureData,u);
+Check(facilities.Length==2&&facilities[0].Id>0,"Known structures require resolved map locations and types");
+Check(facilities.Any(s=>s.LastSeen!=null&&s.Queryable)&&facilities.Any(s=>s.LastSeen==null&&!s.Queryable),"Structure freshness and unresolved access retained explicitly");
+Check(Facilities.ShowNpc(1)&&!Facilities.ShowUpwell(1)&&Facilities.ShowUpwell(2)&&!Facilities.ShowNpc(2)&&Facilities.ShowNpc(3)&&Facilities.ShowUpwell(3)&&!Facilities.ShowNpc(0),"Facility overlay filters are independent");
 Console.WriteLine($"{passed} operations checks passed.");
 if(args.Contains("--live"))
 {

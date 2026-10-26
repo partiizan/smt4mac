@@ -278,6 +278,11 @@ try
  window.FindControl<CheckBox>("ShowIntelKills")!.IsChecked=true;
  await Task.Delay(150);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v015-multiclient-kills.png");
  Console.WriteLine("PASS: independent multi-client states, restart fencing, unavailable-window isolation, cards, profile persistence and kill stream isolation");
+ var facilityFilter=window.FindControl<ComboBox>("FacilityFilter")!;facilityFilter.SelectedIndex=3;
+ if(SettingsStore.Load().FacilityMode!=3||!window.FindControl<TextBlock>("FacilityStatus")!.IsVisible)throw new Exception("Facility filter not persisted / visible");
+ await Task.Delay(150);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v016-facilities.png");
+ facilityFilter.SelectedIndex=0;if(window.FindControl<TextBlock>("FacilityStatus")!.IsVisible)throw new Exception("Facility filter did not turn off");
+ Console.WriteLine("PASS: facility overlay selector persists and switches off");
  Console.WriteLine("Automatic desktop ingestion smoke checks passed on "+System.Runtime.InteropServices.RuntimeInformation.OSDescription);
 }
 catch(Exception error) { failure=error; }

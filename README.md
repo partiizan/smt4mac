@@ -1,12 +1,16 @@
-# SMT4Mac v0.15.2
+# SMT4Mac v0.16.0
 
-See [v0.15.2 changes and monitoring behavior](RELEASE-v0.15.2.md). Native screen monitoring requires macOS 14+. ESI character login remains deferred.
+See [v0.16.0 changes and monitoring behavior](RELEASE-v0.16.0.md). Native screen monitoring requires macOS 14+. ESI character login remains deferred.
 
 # SMT4Mac — Native macOS client
 
 A native macOS map and intel-monitoring beta. Includes the self-contained `.app`; no Terminal launcher or .NET installation is required.
 
-## New in v0.15
+## New in v0.16
+
+NPC station-system and known Upwell map overlays, a regional facilities list, and cached public EVE Ref structure data. No SSO required; private structure coverage and docking access are not guaranteed.
+
+## Previous: v0.15
 
 Multiple independent Local monitors with labeled alerts, conservative auto-detection of the Local roster (review the crop before starting), and regional zKillboard reports integrated into the existing Intel Stream. See the release notes for setup, caching and detection limitations.
 
@@ -52,7 +56,7 @@ After installing, the app rereads recent history automatically. Your earlier tes
 
 ## Download
 
-[Download v0.15.2 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.15.2/SMT4Mac-0.15.2-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
+[Download v0.16.0 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.16.0/SMT4Mac-0.16.0-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
 
 The ZIP includes the compiled app and corresponding source. The installed app is named **SMT4Mac.app**.
 

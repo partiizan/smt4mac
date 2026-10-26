@@ -24,7 +24,7 @@ public partial class MainWindow
             foreach(var entry in JsonSerializer.Deserialize<Dictionary<long,string>>(File.ReadAllText(shipPath))??[])ships[entry.Key]=entry.Value;
         }
         catch(Exception e) when(e is IOException or JsonException){SetStatus("Ship names unavailable; using type IDs.");}
-        situation=new(liveApi,universe);InitializeKillIntel();
+        situation=new(liveApi,universe);InitializeKillIntel();InitializeFacilities();
         Get<ComboBox>("WormholeHub").ItemsSource=new[]{"All hubs","Thera","Turnur"};
         Get<ComboBox>("WormholeHub").SelectedIndex=0;
         Get<ComboBox>("WormholeHub").SelectionChanged+=(_,_)=>RefreshWormholeRows();
@@ -36,10 +36,10 @@ public partial class MainWindow
         foreach(var name in new[]{"StormList"})
             WireSystemActivation(Get<ListBox>(name),item=>(item as LiveItem)?.System);
         Get<ComboBox>("RegionPicker").SelectionChanged+=(_,_)=>ApplyLive();
-        operationTimer.Tick+=(_,_)=>{RefreshWormholeRows();_ = RefreshLive();_ = RefreshRegionalKills();};
-        Opened+=(_,_)=>{operationTimer.Start();_ = RefreshLive();_ = RefreshRegionalKills();};
+        operationTimer.Tick+=(_,_)=>{RefreshWormholeRows();_ = RefreshLive();_ = RefreshRegionalKills();_ = RefreshFacilities();};
+        Opened+=(_,_)=>{operationTimer.Start();_ = RefreshLive();_ = RefreshRegionalKills();_ = RefreshFacilities();};
     }
-    private void StopOperations(){operationTimer.Stop();liveApi.Dispose();killApi.Dispose();}
+    private void StopOperations(){operationTimer.Stop();liveApi.Dispose();killApi.Dispose();facilityApi.Dispose();}
     private void PersistBridges(Bridge[] value)
     {
         Directory.CreateDirectory(SettingsStore.Folder);var path=Path.Combine(SettingsStore.Folder,"ansiblex.csv");File.WriteAllText(path+".tmp",string.Join('\n',value.Select(b=>b.From+","+b.To)));File.Move(path+".tmp",path,true);
@@ -76,6 +76,6 @@ public partial class MainWindow
     private void UpdateOperationalDetails()
     {
         if(selected==null || situation==null)return;var sys=universe.Systems[selected];
-        Get<TextBlock>("SystemInfo").Text=$"{sys.Region}\nSecurity {sys.Security:0.00} · {sys.Jumps.Length} gates"+(sys.Station?"\nNPC station present":"");
+        Get<TextBlock>("SystemInfo").Text=$"{sys.Region}\nSecurity {sys.Security:0.00} · {sys.Jumps.Length} gates"+(sys.Station?"\nNPC station present":"")+FacilitySummary(sys.Id);
     }
 }

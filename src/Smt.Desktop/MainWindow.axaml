@@ -8,7 +8,7 @@
      <StackPanel><TextBlock Text="SMT4Mac" FontWeight="Bold" FontSize="17" LetterSpacing="2"/><TextBlock Text="NEW EDEN INTELLIGENCE" Classes="caption" FontSize="9"/></StackPanel>
     </StackPanel>
     <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="Your region. In focus." FontSize="19" FontWeight="SemiBold"/><TextBlock Name="DataSummary" Classes="muted" FontSize="11"/></StackPanel>
-    <Border Grid.Column="2" Background="#23302A" CornerRadius="5" Padding="12,7" VerticalAlignment="Center"><TextBlock Text="EXPERIMENTAL · 0.15.2" Foreground="#C8D797" FontSize="10" LetterSpacing="1"/></Border>
+    <Border Grid.Column="2" Background="#23302A" CornerRadius="5" Padding="12,7" VerticalAlignment="Center"><TextBlock Text="EXPERIMENTAL · 0.16.0" Foreground="#C8D797" FontSize="10" LetterSpacing="1"/></Border>
    </Grid>
   </Border>
   <Grid Name="Workspace" Grid.Row="1">
@@ -17,6 +17,7 @@
    <Grid RowDefinitions="Auto,*,Auto">
     <StackPanel Margin="18,10" Spacing="6">
      <WrapPanel><ComboBox Name="RegionPicker" Width="190" Margin="0,0,8,4"/><ComboBox Name="AdmFilterPicker" Width="180" Margin="0,0,8,4"/>
+      <ComboBox Name="FacilityFilter" Width="170" Margin="0,0,8,4"/><Button Name="FacilityDetails" Content="Facilities…"/>
       <CheckBox Name="ShowAdm" Content="ADM" IsChecked="True" Margin="0,0,8,0"/><Button Name="ZoomOut" Content="−"/><Button Name="ZoomIn" Content="+"/><Button Name="FitMap" Content="Fit"/>
       <Button Name="ImportBridges" Content="Ansiblex CSV…" Margin="8,0,0,4" ToolTip.Tip="Import known links; green lines show connections, not verified access."/>
       <Button Name="ClearBridges" Content="Clear links" Margin="4,0,0,4"/>
@@ -28,6 +29,7 @@
     </StackPanel>
     <local:StarMap Name="Map" Grid.Row="1" ClipToBounds="True"/>
     <StackPanel Grid.Row="2" Margin="22,8" Spacing="5">
+     <TextBlock Name="FacilityStatus" FontSize="10" Foreground="#B8D1E6" TextWrapping="Wrap"/>
      <WrapPanel><TextBlock Name="SystemName" Text="Select a system" FontWeight="Bold" Margin="0,0,12,0"/><TextBlock Name="SystemInfo" Classes="muted" FontSize="11"/><TextBlock Name="AdmDetails" Foreground="#55DFC5" FontSize="11" Margin="12,0,0,0"/></WrapPanel>
      <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Drag to pan · Scroll to zoom · Click to inspect" Classes="muted" FontSize="11"/><TextBlock Name="MapMode" Grid.Column="1" Text="ADM · PUBLIC ESI" Classes="caption" FontSize="9"/></Grid>
      <Grid ColumnDefinitions="*,Auto"><TextBlock Name="AdmStatus" Text="Connecting to public ESI…" FontSize="10" Foreground="#8C9CB0" VerticalAlignment="Center"/><Button Name="RefreshAdm" Grid.Column="1" Content="Check ADM" FontSize="10" Padding="8,3"/></Grid>

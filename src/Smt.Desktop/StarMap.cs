@@ -22,6 +22,8 @@ public sealed class StarMap : Control
     public IReadOnlyList<Wormhole> Wormholes { get; set; } = [];
     public Dictionary<string,int> StormAreas { get; set; } = [];
     public double? AdmThreshold { get; set; }
+    public int FacilityMode {get;set;}
+    public IReadOnlyDictionary<long,int> StructureCounts {get;set;}=new Dictionary<long,int>();
     public bool ShowAdm { get; set; } = true;
     public bool AdmStale { get; set; }
     public IReadOnlyDictionary<long,SystemSovereignty> Sovereignty { get; set; } = new Dictionary<long,SystemSovereignty>();
@@ -122,6 +124,8 @@ public sealed class StarMap : Control
             if(n.Name==Selected) c.DrawEllipse(null,new Pen(Brush("#F0F6FC"),1.5),p,10,10);
             c.DrawEllipse(Brush("#0A111B"),new Pen(color,n.Outside?1:2),p,4,4);
             if(!n.Outside) c.DrawEllipse(color,null,p,1.8,1.8);
+            if(Facilities.ShowNpc(FacilityMode)&&sys.Station)c.DrawRectangle(null,new Pen(Brush("#65D9F2"),2),new Rect(p.X-9,p.Y-9,18,18));
+            if(Facilities.ShowUpwell(FacilityMode)&&StructureCounts.TryGetValue(sys.Id,out var structures))Text(c,"◇"+structures,new Point(p.X+18,p.Y-23),Brush("#E9B5FF"),12);
             Text(c,n.Name,new Point(p.X,p.Y+8),Brush(n.Outside?"#75869B":"#DCE5EF"),10);
             if(ShowAdm)
             {
