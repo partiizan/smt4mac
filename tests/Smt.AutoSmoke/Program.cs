@@ -296,7 +296,21 @@ try
  if(!window.FindControl<TextBlock>("SelectedFacilityText")!.Text!.Contains("Fixture NPC Station") || !window.FindControl<TextBlock>("SelectedFacilityText")!.Text!.Contains("Fixture Fortizar"))throw new Exception("Named facilities missing from system details");
  if(!window.FindControl<StarMap>("Map")!.FacilityTooltip!("P-ZMZV").Contains("1 NPC stations"))throw new Exception("Named facility tooltip missing count");
  window.FindControl<Button>("StructureConnect")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));await Task.Delay(100);
- var connector=(Window?)typeof(MainWindow).GetField("structureDialog",binding)!.GetValue(window);if(connector==null)throw new Exception("ESI connector inaccessible");connector.Close();
+ var connector=(Window?)typeof(MainWindow).GetField("structureDialog",binding)!.GetValue(window);if(connector==null)throw new Exception("ESI connector inaccessible");
+ var connectorPanel=(StackPanel)((ScrollViewer)connector.Content!).Content!;
+ var useKnown=connectorPanel.Children.OfType<Button>().Single(b=>b.Name=="UseKnownStructureIds");
+ var connectionStatus=connectorPanel.Children.OfType<TextBlock>().Single(t=>t.Name=="StructureConnectionStatus");
+ var structureIds=connectorPanel.Children.OfType<TextBox>().Single(t=>t.AcceptsReturn);
+ useKnown.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+ if(!structureIds.Text!.Contains("100000000001")||!connectionStatus.Text!.Contains("Loaded 1"))throw new Exception("Known IDs not populated");
+ typeof(MainWindow).GetField("selected",binding)!.SetValue(window,null);
+ useKnown.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+ if(!connectionStatus.Text!.Contains("Select a system"))throw new Exception("Missing selection not explained");
+ typeof(MainWindow).GetField("selected",binding)!.SetValue(window,"Jita");structureIds.Text="123456789";
+ useKnown.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+ if(!connectionStatus.Text!.Contains("No known")||structureIds.Text!="123456789")throw new Exception("Empty known IDs erased manual input or lacked explanation");
+ typeof(MainWindow).GetField("selected",binding)!.SetValue(window,"P-ZMZV");
+ connector.Close();
  await Task.Delay(150);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v017-facilities.png");
 
  facilityFilter.SelectedIndex=0;if(window.FindControl<TextBlock>("FacilityStatus")!.IsVisible)throw new Exception("Facility filter did not turn off");

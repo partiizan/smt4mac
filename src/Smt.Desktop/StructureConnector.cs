@@ -21,22 +21,33 @@ public partial class MainWindow
         var portal=new Button{Content="Open EVE application registration ↗"};portal.Click+=(_,_)=>Browse("https://developers.eveonline.com/applications");panel.Children.Add(portal);
         var client=new TextBox{Watermark="Registered application Client ID (not a secret)"};
         var clientPath=Path.Combine(SettingsStore.Folder,"esi-client-id.txt");
-        try{client.Text=File.ReadAllText(clientPath);}catch(IOException){}
+        try{client.Text=File.ReadAllText(clientPath);}catch(Exception e) when(e is IOException or UnauthorizedAccessException){}
         panel.Children.Add(client);
         panel.Children.Add(Label("Login uses your browser and a temporary fixed localhost callback. Tokens and private structure results remain in memory only and are cleared on disconnect or app exit."));
-        var status=Label(structureSession.Connected?$"Connected: {structureSession.CharacterName}":"Not connected");
+        var status=Label(structureSession.Connected?$"Connected: {structureSession.CharacterName}":"Not connected");status.Name="StructureConnectionStatus";
         var connect=new Button{Content="Connect with EVE Online"};
         var disconnect=new Button{Content="Disconnect & clear private results"};
         var ids=new TextBox{Watermark="Structure IDs, separated by spaces, commas or newlines",AcceptsReturn=true,Height=75};
         var lookup=new Button{Content="Look up structure IDs"};
-        var known=new Button{Content="Use known IDs in selected system"};
-        known.Click+=(_,_)=>{if(selected!=null)ids.Text=string.Join(", ",AllStructures().Where(s=>s.SystemId==universe.Systems[selected].Id).Select(s=>s.Id));};
+        var known=new Button{Name="UseKnownStructureIds",Content="Use known IDs in selected system"};
+        known.Click+=(_,_)=>{
+            if(selected==null){status.Text="Select a system on the map first. This button uses existing records; it does not discover structures.";return;}
+            var found=AllStructures().Where(s=>s.SystemId==universe.Systems[selected].Id).Select(s=>s.Id).Distinct().ToArray();
+            if(found.Length==0){status.Text=$"No known Upwell IDs for {selected}. Enter a known numeric structure ID manually. Existing entries have been kept.";return;}
+            ids.Text=string.Join(", ",found);status.Text=$"Loaded {found.Length} known IDs for {selected}. "+(structureSession.Connected?"Click Look up structure IDs to verify access.":"Connect with EVE Online before looking them up.");
+        };
         var cts=CancellationTokenSource.CreateLinkedTokenSource(closing.Token);
         void Busy(bool busy){connect.IsEnabled=!busy;lookup.IsEnabled=!busy;disconnect.IsEnabled=!busy;client.IsEnabled=!busy;}
         connect.Click+=async(_,_)=>{
             Busy(true);
-            try{privateStructures.Clear();ApplyFacilities();status.Text="Waiting for EVE browser login (up to 3 minutes)…";await structureSession.Connect(client.Text??"",Browse,cts.Token);Directory.CreateDirectory(SettingsStore.Folder);File.WriteAllText(clientPath,client.Text!.Trim());privateStructures.Clear();ApplyFacilities();status.Text=$"Connected: {structureSession.CharacterName}";}
-            catch(Exception e) when(e is not OutOfMemoryException){structureSession.Disconnect();status.Text=e is OperationCanceledException?"Login canceled or timed out.":e is System.Net.HttpListenerException?"Login callback unavailable. Close any other SMT4Mac login and retry.":e is InvalidDataException?e.Message:"Could not connect to EVE. Check your network and application setup.";}
+            try{
+                privateStructures.Clear();ApplyFacilities();status.Text="Waiting for EVE browser login (up to 3 minutes)…";
+                await structureSession.Connect(client.Text??"",Browse,cts.Token);
+                privateStructures.Clear();ApplyFacilities();status.Text=$"Connected: {structureSession.CharacterName}";
+                try{Directory.CreateDirectory(SettingsStore.Folder);File.WriteAllText(clientPath,client.Text!.Trim());}
+                catch(Exception e) when(e is IOException or UnauthorizedAccessException){status.Text+=" · Client ID could not be saved; this session remains connected.";}
+            }
+            catch(Exception e) when(e is not OutOfMemoryException){var message=structureSession.LoginFailure(e);structureSession.Disconnect();status.Text=message;}
             finally{Busy(false);}
         };
         disconnect.Click+=(_,_)=>{structureSession.Disconnect();privateStructures.Clear();ApplyFacilities();status.Text="Disconnected; private results cleared.";};

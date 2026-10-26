@@ -16,6 +16,28 @@ public sealed class StructureSession : IDisposable
     private DateTimeOffset expires,backoff;
     public string CharacterName {get;private set;}="";
     public bool Connected=>access.Length>0;
+    public string LoginStage {get;private set;}="Not started";
+    public string LoginFailure(Exception error)
+    {
+        var detail=error switch {
+            InvalidDataException => error.Message,
+            OperationCanceledException => "Canceled or timed out. Retry login.",
+            HttpRequestException h => h.StatusCode is {} code?$"EVE returned HTTP {(int)code}. Retry shortly.":"Could not reach EVE over HTTPS. Check your connection and retry.",
+            HttpListenerException => "Local callback unavailable. Close other SMT4Mac login windows and retry.",
+            JsonException or KeyNotFoundException or InvalidOperationException or FormatException => "EVE returned an unexpected response format.",
+            CryptographicException => "EVE signing key or signature could not be validated.",
+            _ => $"Unexpected {error.GetType().Name}. Report this step and error type."
+        };
+        return $"Login failed at {LoginStage}: {detail}";
+    }
+    private static string[] ClaimStrings(JsonElement claims,string name,bool split=false)
+    {
+        if(!claims.TryGetProperty(name,out var value))return [];
+        if(value.ValueKind==JsonValueKind.String)return split?(value.GetString()??"").Split(' ',StringSplitOptions.RemoveEmptyEntries):[value.GetString()??""];
+        if(value.ValueKind==JsonValueKind.Array&&value.EnumerateArray().All(v=>v.ValueKind==JsonValueKind.String))
+            return value.EnumerateArray().Select(v=>v.GetString()!).ToArray();
+        throw new InvalidDataException($"Invalid {name} claim format.");
+    }
     public StructureSession(HttpMessageHandler? handler=null)
     {
         http=handler==null?new(new HttpClientHandler{AllowAutoRedirect=false}):new(handler);
@@ -39,20 +61,23 @@ public sealed class StructureSession : IDisposable
     public async Task Connect(string id,Action<string> openBrowser,CancellationToken ct)
     {
         if(string.IsNullOrWhiteSpace(id)||id.Length>200)throw new InvalidDataException("Enter your registered EVE application Client ID.");
-        Disconnect();clientId=id.Trim();
+        Disconnect();clientId=id.Trim();LoginStage="starting local callback";
         using var timeout=CancellationTokenSource.CreateLinkedTokenSource(ct);timeout.CancelAfter(TimeSpan.FromMinutes(3));
         using var listener=new HttpListener();listener.Prefixes.Add(Callback);listener.Start();
         using var stop=timeout.Token.Register(()=>listener.Close());
         var state=Base64Url(RandomNumberGenerator.GetBytes(32));var verifier=Base64Url(RandomNumberGenerator.GetBytes(32));
         var args=new Dictionary<string,string>{{"response_type","code"},{"client_id",clientId},{"redirect_uri",Callback},{"scope",Scope},{"state",state},{"code_challenge",Challenge(verifier)},{"code_challenge_method","S256"}};
+        LoginStage="opening EVE browser login";
         openBrowser("https://login.eveonline.com/v2/oauth/authorize?"+string.Join("&",args.Select(p=>Uri.EscapeDataString(p.Key)+"="+Uri.EscapeDataString(p.Value))));
+        LoginStage="waiting for browser callback";
         string code;
         while(true)
         {
             var context=await listener.GetContextAsync().WaitAsync(timeout.Token);
+            LoginStage="checking browser callback";
             try{code=CallbackCode(context.Request.Url!,state);}
             catch(InvalidDataException){context.Response.StatusCode=400;context.Response.Close();throw;}
-            var body=Encoding.UTF8.GetBytes("Login received. Return to SMT4Mac to finish connecting.");
+            var body=Encoding.UTF8.GetBytes("Authorization received; connection is NOT complete yet. Return to SMT4Mac and wait for Connected: followed by your character name.");
             context.Response.ContentType="text/plain; charset=utf-8";context.Response.Headers["Cache-Control"]="no-store";
             await context.Response.OutputStream.WriteAsync(body,timeout.Token);context.Response.Close();break;
         }
@@ -61,35 +86,42 @@ public sealed class StructureSession : IDisposable
     }
     private async Task Tokens(Dictionary<string,string> values,CancellationToken ct)
     {
+        LoginStage="exchanging authorization with EVE";
         using var body=new FormUrlEncodedContent(values);
         using var response=await http.PostAsync("https://login.eveonline.com/v2/oauth/token",body,ct);
-        if(!response.IsSuccessStatusCode){Disconnect();throw new InvalidDataException("EVE authorization expired or was rejected. Connect again.");}
+        if(!response.IsSuccessStatusCode){Disconnect();throw new InvalidDataException($"EVE token endpoint returned HTTP {(int)response.StatusCode}. Check application setup and reconnect; an authorization code cannot be reused.");}
+        LoginStage="reading token response";
         using var doc=JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
         var token=doc.RootElement.GetProperty("access_token").GetString()!;
         var parts=token.Split('.');
         if(parts.Length!=3)throw new InvalidDataException("Invalid EVE access token.");
         using var header=JsonDocument.Parse(Decode(parts[0]));using var payload=JsonDocument.Parse(Decode(parts[1]));
+        LoginStage="loading EVE signing metadata";
         using var metadata=JsonDocument.Parse(await http.GetStringAsync("https://login.eveonline.com/.well-known/oauth-authorization-server",ct));
         var jwks=new Uri(metadata.RootElement.GetProperty("jwks_uri").GetString()!);
         if(jwks.Scheme!="https"||jwks.Host!="login.eveonline.com")throw new InvalidDataException("Unexpected EVE key endpoint.");
+        LoginStage="loading EVE signing keys";
         using var keys=JsonDocument.Parse(await http.GetStringAsync(jwks,ct));
+        LoginStage="validating token signature and claims";
         var h=header.RootElement;var p=payload.RootElement;
         if(h.Str("alg")!="RS256")throw new InvalidDataException("Unexpected token algorithm.");
         var key=keys.RootElement.GetProperty("keys").EnumerateArray().FirstOrDefault(k=>k.Str("kid")==h.Str("kid")&&k.Str("kty")=="RSA");
         if(key.ValueKind==JsonValueKind.Undefined)throw new InvalidDataException("EVE signing key unavailable.");
         using var rsa=RSA.Create();rsa.ImportParameters(new(){Modulus=Decode(key.Str("n")),Exponent=Decode(key.Str("e"))});
         var issuer=p.Str("iss").TrimEnd('/');
-        var audiences=p.GetProperty("aud").EnumerateArray().Select(x=>x.GetString()).ToArray();
+        var audiences=ClaimStrings(p,"aud");
         if(!rsa.VerifyData(Encoding.ASCII.GetBytes(parts[0]+"."+parts[1]),Decode(parts[2]),HashAlgorithmName.SHA256,RSASignaturePadding.Pkcs1)
             ||(issuer!="https://login.eveonline.com"&&issuer!="login.eveonline.com")
             ||!audiences.Contains(clientId)||!audiences.Contains("EVE Online")
             ||p.Number("exp")<=DateTimeOffset.UtcNow.ToUnixTimeSeconds()
             ||!p.Str("sub").StartsWith("CHARACTER:EVE:",StringComparison.Ordinal)
-            ||!p.GetProperty("scp").EnumerateArray().Any(x=>x.GetString()==Scope))
+            ||!ClaimStrings(p,"scp",true).Contains(Scope))
             throw new InvalidDataException("EVE token verification failed.");
         ct.ThrowIfCancellationRequested();
-        access=token;refresh=doc.RootElement.GetProperty("refresh_token").GetString()!;
-        expires=DateTimeOffset.FromUnixTimeSeconds(p.Number("exp"));CharacterName=p.Str("name");
+        var nextRefresh=doc.RootElement.GetProperty("refresh_token").GetString();
+        if(string.IsNullOrWhiteSpace(nextRefresh))throw new InvalidDataException("EVE response did not include a refresh token.");
+        access=token;refresh=nextRefresh;
+        expires=DateTimeOffset.FromUnixTimeSeconds(p.Number("exp"));CharacterName=p.Str("name");LoginStage="connected";
     }
     public async Task<KnownStructure> Lookup(long id,CancellationToken ct)
     {
