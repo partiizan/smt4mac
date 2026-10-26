@@ -9,8 +9,28 @@ public partial class MainWindow
         var divider=Get<Border>("WormholeDivider");
         var toggle=Get<Button>("ToggleWormholes");
         double height=double.IsFinite(settings.WormholeHeight)?Math.Clamp(settings.WormholeHeight,280,600):330;
-        grid.ColumnDefinitions[2].Width=new GridLength(double.IsFinite(settings.IntelWidth)?Math.Clamp(settings.IntelWidth,240,480):300);
-        grid.ColumnDefinitions[4].Width=new GridLength(double.IsFinite(settings.MonitorWidth)?Math.Clamp(settings.MonitorWidth,260,480):300);
+        double intelWidth=double.IsFinite(settings.IntelWidth)?Math.Clamp(settings.IntelWidth,240,480):300;
+        grid.ColumnDefinitions[2].Width=new GridLength(double.IsFinite(settings.MonitorWidth)?Math.Clamp(settings.MonitorWidth,260,480):300);
+        void ApplyIntel()
+        {
+            bool collapsed=settings.IntelCollapsed;
+            Get<Border>("IntelPanel").IsVisible=!collapsed;
+            Get<Button>("ExpandIntel").IsVisible=collapsed;
+            Get<Border>("MonitorDivider").IsVisible=!collapsed;
+            grid.ColumnDefinitions[3].Width=new GridLength(collapsed?0:8);
+            grid.ColumnDefinitions[4].MinWidth=collapsed?36:240;
+            grid.ColumnDefinitions[4].Width=new GridLength(collapsed?36:intelWidth);
+        }
+        void SaveWidths()
+        {
+            if(!settings.IntelCollapsed && Get<Border>("IntelPanel").Bounds.Width>=240)
+                intelWidth=Get<Border>("IntelPanel").Bounds.Width;
+            settings=settings with{IntelWidth=intelWidth,MonitorWidth=Get<Border>("MonitorPanel").Bounds.Width};
+            Save();
+        }
+        Get<Button>("CollapseIntel").Click+=(_,_)=>{SaveWidths();settings=settings with{IntelCollapsed=true};ApplyIntel();Save();};
+        Get<Button>("ExpandIntel").Click+=(_,_)=>{settings=settings with{IntelCollapsed=false};ApplyIntel();Save();};
+        ApplyIntel();
         void Apply()
         {
             bool collapsed=settings.WormholesCollapsed;
@@ -30,7 +50,7 @@ public partial class MainWindow
         };
         divider.PointerReleased+=(_,e)=>{if(dragY==null)return;dragY=null;e.Pointer.Capture(null);settings=settings with{WormholeHeight=height};Save();};
         divider.PointerCaptureLost+=(_,_)=>dragY=null;
-        Get<GridSplitter>("IntelDivider").PointerReleased+=(_,_)=>{settings=settings with{IntelWidth=Get<Border>("IntelPanel").Bounds.Width,MonitorWidth=Get<Border>("MonitorPanel").Bounds.Width};Save();};
+        Get<GridSplitter>("IntelDivider").PointerReleased+=(_,_)=>{SaveWidths();};
         var monitorDivider=Get<Border>("MonitorDivider");
         double? dragX=null;double startIntel=0,startMonitor=0;
         monitorDivider.PointerPressed+=(_,e)=>
@@ -42,25 +62,25 @@ public partial class MainWindow
         monitorDivider.PointerMoved+=(_,e)=>
         {
             if(dragX is not {} start)return;
-            var delta=Math.Clamp(e.GetPosition(grid).X-start,Math.Max(240-startIntel,startMonitor-480),Math.Min(480-startIntel,startMonitor-260));
-            grid.ColumnDefinitions[2].Width=new GridLength(startIntel+delta);grid.ColumnDefinitions[4].Width=new GridLength(startMonitor-delta);
+            var delta=Math.Clamp(e.GetPosition(grid).X-start,Math.Max(260-startMonitor,startIntel-480),Math.Min(480-startMonitor,startIntel-240));
+            grid.ColumnDefinitions[2].Width=new GridLength(startMonitor+delta);intelWidth=startIntel-delta;grid.ColumnDefinitions[4].Width=new GridLength(intelWidth);
         };
         monitorDivider.PointerReleased+=(_,e)=>
         {
             if(dragX==null)return;dragX=null;e.Pointer.Capture(null);
-            settings=settings with{IntelWidth=Get<Border>("IntelPanel").Bounds.Width,MonitorWidth=Get<Border>("MonitorPanel").Bounds.Width};Save();
+            SaveWidths();
         };
         monitorDivider.PointerCaptureLost+=(_,_)=>dragX=null;
-        Closing+=(_,_)=>{settings=settings with{IntelWidth=Get<Border>("IntelPanel").Bounds.Width,MonitorWidth=Get<Border>("MonitorPanel").Bounds.Width,WormholeHeight=height};Save();};
+        Closing+=(_,_)=>{SaveWidths();settings=settings with{WormholeHeight=height};Save();};
         grid.SizeChanged+=(_,_)=>
         {
             if(grid.Bounds.Height<=0)return;
             var budget=grid.Bounds.Width-496;
             var intel=Get<Border>("IntelPanel").Bounds.Width;var monitor=Get<Border>("MonitorPanel").Bounds.Width;
-            if(budget>=500 && intel+monitor>budget+1)
+            if(!settings.IntelCollapsed && budget>=500 && intel+monitor>budget+1)
             {
-                var intelWidth=Math.Clamp(budget*intel/(intel+monitor),240,budget-260);
-                grid.ColumnDefinitions[2].Width=new GridLength(intelWidth);grid.ColumnDefinitions[4].Width=new GridLength(budget-intelWidth);
+                intelWidth=Math.Clamp(budget*intel/(intel+monitor),240,budget-260);
+                grid.ColumnDefinitions[4].Width=new GridLength(intelWidth);grid.ColumnDefinitions[2].Width=new GridLength(budget-intelWidth);
             }
             height=Math.Clamp(height,280,Math.Max(280,grid.Bounds.Height-446));Apply();
         };

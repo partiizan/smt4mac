@@ -1,7 +1,7 @@
 using System.Text.Json;
 namespace Smt.Core;
 
-public sealed record Settings(string Region = "Delve", string LogFolder = "", string ChannelFilter = "", bool HighSecOnly = false, double? AdmThreshold = null, double IntelWidth = 300, double WormholeHeight = 330, bool WormholesCollapsed = false, double MonitorWidth = 300, string[]? IntelChannels = null, int FacilityMode = 0);
+public sealed record Settings(string Region = "Delve", string LogFolder = "", string ChannelFilter = "", bool HighSecOnly = false, double? AdmThreshold = null, double IntelWidth = 300, double WormholeHeight = 330, bool WormholesCollapsed = false, double MonitorWidth = 300, string[]? IntelChannels = null, int FacilityMode = 0, bool IntelCollapsed = false);
 public static class SettingsStore
 {
     public static string Folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SMT-Mac-Beta");

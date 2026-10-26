@@ -63,16 +63,24 @@ try
  toggle.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));toggle.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
  if(workspace.RowDefinitions[3].Height.Value!=SettingsStore.Load().WormholeHeight)throw new Exception("Resized drawer height lost");
  var intelDivider=window.FindControl<GridSplitter>("IntelDivider")!;
- var intelBefore=window.FindControl<Border>("IntelPanel")!.Bounds.Width;
+ var intelBefore=window.FindControl<Border>("MonitorPanel")!.Bounds.Width;
  var point=intelDivider.TranslatePoint(new Point(4,100),window)!.Value;
  window.MouseDown(point,Avalonia.Input.MouseButton.Left);window.MouseMove(point-new Vector(40,0));window.MouseUp(point-new Vector(40,0),Avalonia.Input.MouseButton.Left);await Task.Delay(100);
- if(window.FindControl<Border>("IntelPanel")!.Bounds.Width<=intelBefore)throw new Exception("Intel divider failed");
+ if(window.FindControl<Border>("MonitorPanel")!.Bounds.Width<=intelBefore)throw new Exception("Map / monitor divider failed");
  var monitorDivider=window.FindControl<Border>("MonitorDivider")!;
  var monitorBefore=window.FindControl<Border>("MonitorPanel")!.Bounds.Width;
  point=monitorDivider.TranslatePoint(new Point(4,100),window)!.Value;
  window.MouseDown(point,Avalonia.Input.MouseButton.Left);window.MouseMove(point-new Vector(25,0));window.MouseUp(point-new Vector(25,0),Avalonia.Input.MouseButton.Left);await Task.Delay(100);
- if(window.FindControl<Border>("MonitorPanel")!.Bounds.Width<=monitorBefore)throw new Exception("Local monitor divider failed");
- Console.WriteLine("PASS: Three permanent columns resize; wormhole collapse, restore and resize work");
+ if(window.FindControl<Border>("MonitorPanel")!.Bounds.Width>=monitorBefore)throw new Exception("Local monitor divider failed");
+ var expandedIntelWidth=window.FindControl<Border>("IntelPanel")!.Bounds.Width;
+ var reportsBeforeCollapse=Count();
+ window.FindControl<Button>("CollapseIntel")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));await Task.Delay(100);
+ if(window.FindControl<Border>("IntelPanel")!.IsVisible || !window.FindControl<Button>("ExpandIntel")!.IsVisible || !SettingsStore.Load().IntelCollapsed || workspace.ColumnDefinitions[4].Width.Value!=36)throw new Exception("Intel collapse failed");
+ if(!window.FindControl<Border>("MonitorPanel")!.IsVisible || Count()!=reportsBeforeCollapse)throw new Exception("Collapsing intel affected monitor or reports");
+ window.FindControl<Button>("ExpandIntel")!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));await Task.Delay(100);
+ if(!window.FindControl<Border>("IntelPanel")!.IsVisible || SettingsStore.Load().IntelCollapsed || Math.Abs(window.FindControl<Border>("IntelPanel")!.Bounds.Width-expandedIntelWidth)>1)throw new Exception("Intel width restore failed");
+ Console.WriteLine("PASS: Reordered columns resize; intel and wormholes collapse and restore");
+
  Directory.CreateDirectory("screenshots");
  await Task.Delay(300);
  using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v013-intel.png");
