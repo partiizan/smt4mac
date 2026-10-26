@@ -278,8 +278,10 @@ try
  window.FindControl<CheckBox>("ShowIntelKills")!.IsChecked=true;
  await Task.Delay(150);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v015-multiclient-kills.png");
  Console.WriteLine("PASS: independent multi-client states, restart fencing, unavailable-window isolation, cards, profile persistence and kill stream isolation");
+ typeof(MainWindow).GetField("knownStructures",binding)!.SetValue(window,new[]{new KnownStructure(100000000001,u.Systems["P-ZMZV"].Id,35833,"Fixture Fortizar",DateTimeOffset.UtcNow,true)});
  var facilityFilter=window.FindControl<ComboBox>("FacilityFilter")!;facilityFilter.SelectedIndex=3;
  if(SettingsStore.Load().FacilityMode!=3||!window.FindControl<TextBlock>("FacilityStatus")!.IsVisible)throw new Exception("Facility filter not persisted / visible");
+ if(!window.FindControl<TextBlock>("FacilityStatus")!.Text!.Contains("1 known structures"))throw new Exception("Known Upwell count not applied to selected region");
  await Task.Delay(150);using(var frame=window.CaptureRenderedFrame())frame?.Save("screenshots/v016-facilities.png");
  facilityFilter.SelectedIndex=0;if(window.FindControl<TextBlock>("FacilityStatus")!.IsVisible)throw new Exception("Facility filter did not turn off");
  Console.WriteLine("PASS: facility overlay selector persists and switches off");
