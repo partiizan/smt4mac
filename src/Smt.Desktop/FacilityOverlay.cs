@@ -18,7 +18,6 @@ public partial class MainWindow
         var picker=Get<ComboBox>("FacilityFilter");picker.ItemsSource=new[]{"Facilities: Off","NPC stations","Known Upwell","NPC + known Upwell"};picker.SelectedIndex=Math.Clamp(settings.FacilityMode,0,3);
         picker.SelectionChanged+=(_,_)=>{settings=settings with{FacilityMode=Math.Max(0,picker.SelectedIndex)};Save();ApplyFacilities();};
         InitializeNamedFacilities();
-        Get<Button>("FacilityDetails").Click+=(_,_)=>ShowNamedFacilityDetails();
         Get<ComboBox>("RegionPicker").SelectionChanged+=(_,_)=>ApplyFacilities();
         Opened+=(_,_)=>_=RefreshFacilities();ApplyFacilities();
     }

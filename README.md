@@ -1,6 +1,6 @@
-# SMT4Mac v0.17.1
+# SMT4Mac v0.17.2
 
-See [v0.17.1 changes and monitoring behavior](RELEASE-v0.17.1.md). Native screen monitoring requires macOS 14+. ESI character login remains deferred.
+See [v0.17.2 changes and monitoring behavior](RELEASE-v0.17.2.md). Native screen monitoring requires macOS 14+. ESI character login remains deferred.
 
 # SMT4Mac — Native macOS client
 
@@ -8,7 +8,7 @@ A native macOS map and intel-monitoring beta. Includes the self-contained `.app`
 
 ## New in v0.16
 
-Named NPC / Upwell facility lists below the map, hover counts, and a searchable regional facilities browser. Public data needs no SSO. Optional Structure ESI login resolves known IDs your character can access; see RELEASE-v0.17.1.md for Client ID / callback setup. Intel Stream now collapses to the right edge while ingestion and alerts continue. Private coverage and docking access are not guaranteed.
+Named NPC / Upwell facility lists below the map, tooltips listing each known Upwell structure name and type. Public data needs no SSO. Optional Structure ESI login resolves known IDs your character can access; see RELEASE-v0.17.0.md for Client ID / callback setup. Intel Stream now collapses to the right edge while ingestion and alerts continue. Private coverage and docking access are not guaranteed.
 
 ## Previous: v0.15
 
@@ -56,7 +56,7 @@ After installing, the app rereads recent history automatically. Your earlier tes
 
 ## Download
 
-[Download v0.17.1 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.17.1/SMT4Mac-0.17.1-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
+[Download v0.17.2 for Apple Silicon](https://github.com/partiizan/smt4mac/releases/download/v0.17.2/SMT4Mac-0.17.2-AppleSilicon.zip) · [All releases](https://github.com/partiizan/smt4mac/releases)
 
 The ZIP includes the compiled app and corresponding source. The installed app is named **SMT4Mac.app**.
 
