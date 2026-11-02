@@ -33,6 +33,7 @@ public sealed class LiveApi : IDisposable
         if(seconds>0)cache[key]=(body,DateTimeOffset.UtcNow.AddSeconds(seconds));
         return body;
     }
+    public void ForgetResponse(string url)=>cache.Remove(url);
     public void Dispose()=>http.Dispose();
 }
 public static class JsonFields

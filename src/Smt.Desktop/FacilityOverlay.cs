@@ -31,7 +31,7 @@ public partial class MainWindow
             knownStructures=parsed;nextFacilities=DateTimeOffset.UtcNow.AddHours(1);facilityHealth=$"EVE Ref · checked {DateTimeOffset.UtcNow:MMM d HH:mm} UTC";
             try{Directory.CreateDirectory(SettingsStore.Folder);File.WriteAllText(FacilityCache+".tmp",data.GetRawText());File.Move(FacilityCache+".tmp",FacilityCache,true);}catch(Exception e) when(e is IOException or UnauthorizedAccessException){facilityHealth+=" · disk cache unavailable";}
         }catch(Exception e) when(e is HttpRequestException or JsonException or InvalidDataException or OperationCanceledException){facilityHealth="EVE Ref unavailable · retained structures may be stale";}
-        finally{facilityBusy=false;if(!closing.IsCancellationRequested){ApplyFacilities();UpdateOperationalDetails();}}
+        finally{facilityApi.ForgetResponse(Facilities.SourceUrl);facilityBusy=false;if(!closing.IsCancellationRequested){ApplyFacilities();UpdateOperationalDetails();}}
     }
     private void ApplyFacilities()
     {

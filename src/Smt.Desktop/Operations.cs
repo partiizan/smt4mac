@@ -32,7 +32,7 @@ public partial class MainWindow
         Get<Button>("EveScoutLink").Click+=(_,_)=>Browse("https://www.eve-scout.com/");
         Get<Button>("ImportBridges").Click+=async(_,_)=>await ImportBridgesAsync();
         Get<Button>("ClearBridges").Click+=(_,_)=>{try{PersistBridges([]);bridges=[];UpdateBridges();}catch(Exception e){SetStatus(e.Message);}};
-        try{var path=Path.Combine(SettingsStore.Folder,"ansiblex.csv");if(File.Exists(path))bridges=Navigation.ParseBridges(File.ReadAllText(path),universe);}catch(Exception e){SetStatus("Ansiblex import unavailable: "+e.Message);}UpdateBridges();
+        try{var path=Path.Combine(SettingsStore.Folder,"ansiblex.csv");if(File.Exists(path))bridges=Navigation.ParseBridges(File.ReadAllText(path),universe);}catch(Exception e){SetStatus("Ansiblex import unavailable: "+e.Message);}UpdateBridges();Get<ComboBox>("RegionPicker").SelectionChanged+=(_,_)=>UpdateBridges();
         foreach(var name in new[]{"StormList"})
             WireSystemActivation(Get<ListBox>(name),item=>(item as LiveItem)?.System);
         Get<ComboBox>("RegionPicker").SelectionChanged+=(_,_)=>ApplyLive();
@@ -50,11 +50,12 @@ public partial class MainWindow
         {
             var files=await StorageProvider.OpenFilePickerAsync(new(){Title="Ansiblex CSV: FromSystem,ToSystem (one bidirectional link per line)",AllowMultiple=false});
             var path=files.FirstOrDefault()?.TryGetLocalPath();if(path==null)return;
-            var parsed=Navigation.ParseBridges(await File.ReadAllTextAsync(path),universe);PersistBridges(parsed);bridges=parsed;UpdateBridges();
+            var parsed=Navigation.ParseBridges(await File.ReadAllTextAsync(path),universe);if(parsed.Length==0)throw new FormatException("No links found. Add an uncommented FromSystem,ToSystem row and import again.");PersistBridges(parsed);bridges=parsed;UpdateBridges();
         }
         catch(Exception e){Get<TextBlock>("BridgeStatus").Text="Import rejected: "+e.Message;}
     }
-    private void UpdateBridges(){Get<TextBlock>("BridgeStatus").Text=$"{bridges.Length} imported bidirectional links · access unverified";Map.Bridges=bridges;Map.InvalidateVisual();}
+    private void UpdateBridges(){Get<TextBlock>("BridgeStatus").Text=$"{bridges.Length} imported bidirectional links · access unverified";Map.Bridges=bridges;Map.InvalidateVisual();
+        if(Get<ComboBox>("RegionPicker").SelectedItem is Region r){var names=r.Nodes.Select(n=>n.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);Get<TextBlock>("BridgeStatus").Text+=$" · {bridges.Count(b=>names.Contains(b.From)&&names.Contains(b.To))} drawable in {r.Name}";}}
     private async Task RefreshLive()
     {
         if(liveBusy || closing.IsCancellationRequested)return;liveBusy=true;
